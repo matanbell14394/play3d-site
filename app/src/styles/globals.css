@@ -88,8 +88,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-noto-hebrew), 'Noto Sans Hebrew', sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.65;
   overflow-x: hidden;
   min-height: 100vh;
   direction: rtl;
@@ -194,10 +194,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 .nl {
-  padding: 6px 12px;
+  padding: 7px 14px;
   border-radius: 8px;
   color: var(--text2);
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   transition: all .2s;
   letter-spacing: .3px;
@@ -361,7 +361,7 @@ a { text-decoration: none; color: inherit; }
    BUTTONS
    ============================================= */
 .btn {
-  padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
   cursor: pointer; border: 1px solid; font-family: inherit; transition: all .2s;
   display: inline-flex; align-items: center; gap: 5px; text-decoration: none;
 }
@@ -373,7 +373,7 @@ a { text-decoration: none; color: inherit; }
 .btn-g:hover { border-color: var(--text2); color: var(--text); }
 .btn-d { border-color: rgba(255,60,60,.3); color: #ff4444; background: rgba(255,60,60,.06); }
 .btn-d:hover { background: #ff4444; color: #fff; }
-.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
 
 .submit-btn-big {
   grid-column: 1/-1; padding: 13px; border-radius: 10px;
@@ -431,9 +431,9 @@ a { text-decoration: none; color: inherit; }
 /* =============================================
    TABLES
    ============================================= */
-.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl th { padding: 10px 14px; text-align: right; font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); background: rgba(0,238,221,.03); }
-.tbl td { padding: 12px 14px; border-bottom: 1px solid var(--border2); color: var(--text); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tbl th { padding: 11px 16px; text-align: right; font-size: 13px; color: var(--text2); letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid var(--border); background: rgba(0,238,221,.03); }
+.tbl td { padding: 13px 16px; border-bottom: 1px solid var(--border2); color: var(--text); }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr:hover td { background: rgba(0,238,221,.03); }
 .tbl td:last-child, .tbl th:last-child { text-align: left; }
