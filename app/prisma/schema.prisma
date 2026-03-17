@@ -1,0 +1,264 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------
+// ENUMS
+// --------------------------------------
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  CLIENT
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  PRINTING
+  READY_FOR_PICKUP
+  DELIVERED
+  CANCELLED
+  ON_HOLD
+  FAILED
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  REFUND
+}
+
+enum InventoryType {
+  FILAMENT
+  RESIN
+  SPARE_PART
+  TOOL
+  OTHER
+}
+
+enum SliceStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+
+
+
+// --------------------------------------
+// MODELS
+// --------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(CLIENT)
+  orders    Order[]
+  messages  OrderMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        UserRole     @unique
+  permissions PermissionsOnRoles[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id String @id @default(cuid())
+  name String @unique
+  roles PermissionsOnRoles[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PermissionsOnRoles {
+  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  permissionId String
+
+  assignedAt DateTime @default(now())
+
+  @@id([roleId, permissionId])
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         OrderStatus   @default(PENDING)
+
+  clientName     String
+  clientPhone    String
+  notes          String?
+  quantity       Int           @default(1)
+
+  stlUrl         String?
+  stlFileKey     String? // Key for stored file in a service like S3
+
+  totalPrice     Float?
+  processed      Boolean       @default(false)
+  isInventoryUpdated Boolean   @default(false)
+
+  productId      String?
+  product        Product?      @relation(fields: [productId], references: [id])
+
+  messages       OrderMessage[]
+  sliceJobs      SliceJob[]
+  transactions   Transaction[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  name          String
+  batchQuantity Int
+  printHours    Float
+  operatorHours Float
+  markup        Float // Stored as a decimal, e.g., 0.25 for 25%
+
+  materials     ProductMaterial[]
+  orders        Order[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([name])
+}
+
+model ProductMaterial {
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  amountUsed    Float
+
+  @@id([productId, inventoryItemId])
+}
+
+model InventoryItem {
+  id            String        @id @default(cuid())
+  name          String
+  type          InventoryType
+  quantity      Float         // Can be grams for filament, ml for resin, or units for parts
+  unit          String        // e.g., 'g', 'ml', 'pcs'
+  price         Float         // Purchase price per unit
+
+  products      ProductMaterial[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  orderId         String?
+  order           Order?          @relation(fields: [orderId], references: [id])
+
+  type            TransactionType
+  amount          Float
+  description     String
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([orderId])
+  @@index([type])
+}
+
+model GalleryProject {
+  id            String         @id @default(cuid())
+  title         String
+  description   String?
+  imageUrl      String?        // Main thumbnail image
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Setting {
+  id        String @id @default(cuid())
+  key       String @unique
+  value     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  userId    String?  // Who performed the action
+  details   String?  // JSON string with more details
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([action])
+}
+
+model SliceJob {
+  id              String      @id @default(cuid())
+  orderId         String
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  status          SliceStatus @default(PENDING)
+  
+  estimatedTime   Float? // in seconds
+  materialGrams   Float?
+  filamentLength  Float? // in mm
+  layerCount      Int?
+  infillPercent   Int?
+  
+  boundingBox     String? // e.g., "100x50x120"
+  supportUsage    Boolean?
+  
+  rawLog          String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
