@@ -3,14 +3,15 @@ import prisma from '@/lib/prisma/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    const { id } = await params;
     const body = await req.json();
     const item = await prisma.inventoryItem.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: body.name,
         type: body.type,
@@ -26,12 +27,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    await prisma.inventoryItem.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await prisma.inventoryItem.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
