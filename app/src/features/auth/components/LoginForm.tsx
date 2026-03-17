@@ -51,7 +51,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       <form onSubmit={handleSubmit(onSubmit)} style={{ position: 'relative', zIndex: 1 }}>
         <div className="fg" style={{ marginBottom: 12 }}>
           <label>אימייל</label>
-          <input id="email" type="email" placeholder="admin@play3d.co.il" {...register("email")} />
+          <input id="email" type="email" autoComplete="off" {...register("email")} />
           {errors.email && <p style={{ color: 'var(--pink)', fontSize: 11, marginTop: 3 }}>{errors.email.message}</p>}
         </div>
         <div className="fg" style={{ marginBottom: 14 }}>
