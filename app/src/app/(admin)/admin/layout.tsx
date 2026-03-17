@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { label: 'ראשי', items: [
@@ -73,6 +74,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/" className="nav-logo">PLAY3D</Link>
         <div className="nav-links">
           <Link href="/" className="nl">← אתר ראשי</Link>
+          <ThemeToggle />
         </div>
       </nav>
     </div>

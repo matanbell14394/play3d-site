@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const galleryItems = [
   { emoji: '🦁', title: 'פסל אריה', sub: 'PLA · 18 שעות', desc: 'פסל אריה מפורט בגובה 15 ס"מ, הודפס ב-PLA לבן ונצבע בעבודת יד. מושלם לאספנות ועיצוב הבית.', extras: ['🦁', '🐾', '🏆'] },
@@ -45,6 +46,7 @@ export default function HomePage() {
           <a href="#contact" className="nl">צור קשר</a>
           <Link href="/login" className="nl special">אזור לקוח</Link>
           <Link href="/admin/dashboard" className="nl cta">ניהול</Link>
+          <ThemeToggle />
         </div>
       </nav>
 
