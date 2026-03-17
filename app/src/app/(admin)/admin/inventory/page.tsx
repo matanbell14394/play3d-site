@@ -45,17 +45,23 @@ export default function InventoryPage() {
     setShowForm(true);
   };
 
+  const isFilament = (t: string) => t === 'FILAMENT' || t === 'RESIN';
+
   const openEdit = (item: InventoryItem) => {
     setEditItem(item);
     setName(item.name); setType(item.type);
-    setQuantity(String(item.quantity)); setUnit(item.unit); setPrice(String(item.price));
+    setQuantity(String(item.quantity)); setUnit(item.unit);
+    // Display price per kg for filament (stored as per-gram)
+    setPrice(isFilament(item.type) ? String(Math.round(item.price * 1000)) : String(item.price));
     setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const body = { name, type, quantity, unit, price };
+    // For filament: user inputs per-kg price → store as per-gram
+    const storedPrice = isFilament(type) ? (parseFloat(price) / 1000) : parseFloat(price);
+    const body = { name, type, quantity, unit, price: storedPrice };
     if (editItem) {
       await fetch(`/api/inventory/${editItem.id}`, {
         method: 'PUT',
@@ -124,7 +130,12 @@ export default function InventoryPage() {
                   <td><span className="badge bt">{TYPE_LABELS[item.type] ?? item.type}</span></td>
                   <td style={{ color: item.quantity < LOW_THRESHOLD ? 'var(--pink)' : 'inherit' }}>{item.quantity}</td>
                   <td style={{ color: 'var(--text2)' }}>{item.unit}</td>
-                  <td>₪{item.price}</td>
+                  <td>
+                    {isFilament(item.type)
+                      ? <span>₪{Math.round(item.price * 1000)}<span style={{ fontSize: 11, color: 'var(--text3)' }}>/ק"ג</span></span>
+                      : <span>₪{item.price}<span style={{ fontSize: 11, color: 'var(--text3)' }}>/יח'</span></span>
+                    }
+                  </td>
                   <td>
                     <div className="invbar" style={{ width: 80 }}>
                       <div className="invfill" style={{ width: `${pct}%`, background: color }} />
@@ -176,8 +187,16 @@ export default function InventoryPage() {
               </div>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>מחיר ליחידה (₪)</label>
-              <input className="inp" type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} required />
+              <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>
+                {isFilament(type) ? 'מחיר לגליל / ק"ג (₪)' : 'מחיר ליחידה (₪)'}
+              </label>
+              <input className="inp" type="number" min="0" step={isFilament(type) ? '1' : '0.01'} value={price} onChange={e => setPrice(e.target.value)} required
+                placeholder={isFilament(type) ? 'למשל: 80 ₪/ק"ג' : '0.00'} />
+              {isFilament(type) && (
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                  = ₪{price ? (parseFloat(price) / 1000).toFixed(4) : '0'} לגרם (לחישוב עלות)
+                </div>
+              )}
             </div>
             <button type="submit" className="btn btn-t" disabled={saving}>{saving ? 'שומר...' : editItem ? 'עדכן' : 'הוסף פריט'}</button>
           </form>
