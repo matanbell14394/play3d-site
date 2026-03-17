@@ -1,27 +1,25 @@
 'use client';
 
+import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('theme') as 'dark' | 'light' | null;
-    const initial = saved ?? 'dark';
-    setTheme(initial);
-    document.documentElement.setAttribute('data-theme', initial);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const toggle = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-  };
+  if (!mounted) return <div style={{ width: 38, height: 38 }} />;
+
+  const isDark = theme === 'dark';
 
   return (
-    <button className="theme-toggle" onClick={toggle} title={theme === 'dark' ? 'מצב בהיר' : 'מצב כהה'}>
-      {theme === 'dark' ? '☀️' : '🌙'}
+    <button
+      className="theme-toggle"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      title={isDark ? 'מצב בהיר' : 'מצב כהה'}
+    >
+      {isDark ? '☀️' : '🌙'}
     </button>
   );
 }

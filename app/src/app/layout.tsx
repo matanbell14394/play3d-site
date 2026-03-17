@@ -28,11 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <body className={`${orbitron.variable} ${notoSansHebrew.variable}`}>
+      <body className={`${orbitron.variable} ${notoSansHebrew.variable}`} style={{ fontSize: '17px' }}>
         <ThemeProvider
-          attribute="class"
+          attribute="data-theme"
           defaultTheme="dark"
-          enableSystem
           disableTransitionOnChange
         >
           <Providers>{children}</Providers>
