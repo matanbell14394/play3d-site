@@ -4,31 +4,24 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 
-const galleryItems = [
-  { emoji: '🦁', title: 'פסל אריה', sub: 'PLA · 18 שעות', desc: 'פסל אריה מפורט בגובה 15 ס"מ, הודפס ב-PLA לבן ונצבע בעבודת יד. מושלם לאספנות ועיצוב הבית.', extras: ['🦁', '🐾', '🏆'] },
-  { emoji: '🚀', title: 'מודל רקטה', sub: 'PETG · 12 שעות', desc: 'מודל מפורט של רקטה בקנה מידה 1:50, הודפס ב-PETG שחור עם גימור חלק. מתאים לתצוגה ולחינוך.', extras: ['🚀', '🌌', '⭐'] },
-  { emoji: '⚙️', title: 'גלגל שיניים', sub: 'ABS · 4 שעות', desc: 'גלגל שיניים תעשייתי ב-ABS עמיד חום, מידות מדויקות להתאמה מכנית מושלמת.', extras: ['⚙️', '🔩', '🔧'] },
-  { emoji: '🏠', title: 'מודל בית', sub: 'PLA · 8 שעות', desc: 'מקט אדריכלי מפורט של בית פרטי, הודפס ב-PLA לבן. כולל חלונות, דלתות ופרטי חזית.', extras: ['🏠', '🏡', '🌳'] },
-  { emoji: '🎮', title: 'ג׳וי-סטיק', sub: 'TPU · 6 שעות', desc: 'ידית ג׳וי-סטיק בהדפסת TPU גמיש, אחיזה נוחה ועמידות גבוהה לשימוש יומיומי.', extras: ['🎮', '🕹️', '🎯'] },
-  { emoji: '💎', title: 'תכשיט עיצובי', sub: 'Resin · 3 שעות', desc: 'תכשיט עיצובי הודפס בשרף (Resin) ברזולוציה גבוהה במיוחד, עם גימור מבריק.', extras: ['💎', '✨', '💍'] },
-];
+interface GalleryItem { id: string; title: string; description: string | null; imageUrl: string | null; }
 
 export default function HomePage() {
   const [lightbox, setLightbox] = useState<number | null>(null);
-  const [imgIdx, setImgIdx] = useState(0);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+
+  useEffect(() => {
+    fetch('/api/gallery').then(r => r.json()).then(d => { if (Array.isArray(d)) setGalleryItems(d); });
+  }, []);
 
   useEffect(() => {
     if (lightbox === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(null);
-      if (e.key === 'ArrowLeft') setImgIdx(i => (i + 1) % galleryItems[lightbox!].extras.length);
-      if (e.key === 'ArrowRight') setImgIdx(i => (i - 1 + galleryItems[lightbox!].extras.length) % galleryItems[lightbox!].extras.length);
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox]);
 
-  const openLightbox = (idx: number) => { setLightbox(idx); setImgIdx(0); };
+  const openLightbox = (idx: number) => { setLightbox(idx); };
 
   return (
     <>
@@ -126,14 +119,20 @@ export default function HomePage() {
           <div className="sh-line" />
         </div>
         <div className="gal-grid">
-          {galleryItems.map((item, idx) => (
-            <div key={item.title} className="gal-card" onClick={() => openLightbox(idx)} style={{ cursor: 'pointer' }}>
-              <div className="gal-thumb" style={{ background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
-                {item.emoji}
+          {galleryItems.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--text3)', padding: 48, fontSize: 14 }}>
+              עבודות בקרוב...
+            </div>
+          ) : galleryItems.map((item, idx) => (
+            <div key={item.id} className="gal-card" onClick={() => openLightbox(idx)} style={{ cursor: 'pointer' }}>
+              <div className="gal-thumb" style={{ background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56, overflow: 'hidden' }}>
+                {item.imageUrl
+                  ? <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : '🖼️'}
               </div>
               <div className="gal-overlay">
                 <div className="gal-t">{item.title}</div>
-                <div className="gal-s">{item.sub}</div>
+                {item.description && <div className="gal-s">{item.description}</div>}
                 <div style={{ fontSize: 10, color: 'var(--teal)', marginTop: 4, opacity: 0.8 }}>לחץ לצפייה ▸</div>
               </div>
             </div>
@@ -308,42 +307,21 @@ export default function HomePage() {
         </div>
       </footer>
       {/* LIGHTBOX */}
-      {lightbox !== null && (() => {
+      {lightbox !== null && galleryItems[lightbox] && (() => {
         const item = galleryItems[lightbox];
         return (
-          <div
-            onClick={() => setLightbox(null)}
-            style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5%' }}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, maxWidth: 560, width: '100%', overflow: 'hidden', position: 'relative' }}
-            >
-              {/* Close */}
+          <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5%' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, maxWidth: 560, width: '100%', overflow: 'hidden', position: 'relative' }}>
               <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(255,255,255,.07)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, padding: '4px 10px', zIndex: 2 }}>✕</button>
-
-              {/* Main image */}
-              <div style={{ background: 'var(--bg3)', height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 96, position: 'relative' }}>
-                {item.extras[imgIdx]}
-                {/* Arrows */}
-                <button onClick={() => setImgIdx(i => (i - 1 + item.extras.length) % item.extras.length)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 18, padding: '6px 12px' }}>‹</button>
-                <button onClick={() => setImgIdx(i => (i + 1) % item.extras.length)} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 18, padding: '6px 12px' }}>›</button>
+              <div style={{ background: 'var(--bg3)', height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 96, overflow: 'hidden' }}>
+                {item.imageUrl
+                  ? <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  : '🖼️'}
               </div>
-
-              {/* Thumbnails */}
-              <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                {item.extras.map((e, i) => (
-                  <div key={i} onClick={() => setImgIdx(i)} style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--bg3)', border: `1px solid ${i === imgIdx ? 'var(--teal)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, cursor: 'pointer', transition: 'border-color .2s' }}>{e}</div>
-                ))}
-                <div style={{ fontSize: 10, color: 'var(--text3)', alignSelf: 'center', marginRight: 'auto' }}>{imgIdx + 1} / {item.extras.length}</div>
-              </div>
-
-              {/* Info */}
               <div style={{ padding: '16px 20px' }}>
-                <div style={{ fontFamily: 'var(--font-orbitron), monospace', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--teal)', marginBottom: 10 }}>{item.sub}</div>
-                <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.75 }}>{item.desc}</p>
-                <a href="#order" onClick={() => setLightbox(null)} className="btn-hero" style={{ display: 'inline-block', marginTop: 16, fontSize: 13, padding: '10px 22px' }}>הזמן הדפסה דומה</a>
+                <div style={{ fontFamily: 'var(--font-orbitron), monospace', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{item.title}</div>
+                {item.description && <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.75, marginBottom: 16 }}>{item.description}</p>}
+                <a href="#order" onClick={() => setLightbox(null)} className="btn-hero" style={{ display: 'inline-block', fontSize: 13, padding: '10px 22px' }}>הזמן הדפסה דומה</a>
               </div>
             </div>
           </div>
