@@ -6,6 +6,42 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 interface GalleryItem { id: string; title: string; description: string | null; imageUrl: string | null; images: string; }
 
+function ContactForm() {
+  const [form, setForm] = useState({ name: '', contact: '', message: '' });
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const submit = async () => {
+    if (!form.name || !form.contact || !form.message) return;
+    setStatus('sending');
+    try {
+      const res = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      setStatus(res.ok ? 'sent' : 'error');
+      if (res.ok) setForm({ name: '', contact: '', message: '' });
+    } catch { setStatus('error'); }
+  };
+
+  if (status === 'sent') return (
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--teal)', borderRadius: 14, padding: 32, textAlign: 'center' }}>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>✅</div>
+      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--teal)' }}>הודעה נשלחה!</div>
+      <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 6 }}>נחזור אליך בהקדם</div>
+      <button onClick={() => setStatus('idle')} style={{ marginTop: 16, padding: '8px 20px', background: 'transparent', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--text2)', cursor: 'pointer', fontSize: 13 }}>שלח הודעה נוספת</button>
+    </div>
+  );
+
+  return (
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+      <div className="fg" style={{ marginBottom: 11 }}><label>שם *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ישראל ישראלי" /></div>
+      <div className="fg" style={{ marginBottom: 11 }}><label>אימייל / טלפון *</label><input value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} placeholder="052-0000000" /></div>
+      <div className="fg" style={{ marginBottom: 14 }}><label>הודעה *</label><textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} style={{ minHeight: 85 }} placeholder="כתוב לנו..." /></div>
+      {status === 'error' && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 10 }}>שגיאה בשליחה, נסה שוב</div>}
+      <button onClick={submit} disabled={status === 'sending' || !form.name || !form.contact || !form.message} style={{ width: '100%', padding: 11, borderRadius: 9, background: 'linear-gradient(135deg,var(--teal),var(--teal2))', border: 'none', color: 'var(--bg)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', opacity: status === 'sending' ? .7 : 1 }}>
+        {status === 'sending' ? 'שולח...' : 'שלח הודעה'}
+      </button>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [imgIdx, setImgIdx] = useState(0);
@@ -277,14 +313,7 @@ export default function HomePage() {
               <div><div className="cii-lbl">שעות פעילות</div><div className="cii-val">א׳–ה׳ 09:00–18:00</div></div>
             </div>
           </div>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
-            <div className="fg" style={{ marginBottom: 11 }}><label>שם</label><input placeholder="ישראל ישראלי" /></div>
-            <div className="fg" style={{ marginBottom: 11 }}><label>אימייל / טלפון</label><input placeholder="050-0000000" /></div>
-            <div className="fg" style={{ marginBottom: 14 }}><label>הודעה</label><textarea style={{ minHeight: 85 }} placeholder="כתוב לנו..." /></div>
-            <button style={{ width: '100%', padding: 11, borderRadius: 9, background: 'linear-gradient(135deg,var(--teal),var(--teal2))', border: 'none', color: 'var(--bg)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
-              שלח הודעה
-            </button>
-          </div>
+          <ContactForm />
         </div>
       </section>
 

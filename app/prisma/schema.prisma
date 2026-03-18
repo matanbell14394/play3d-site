@@ -217,6 +217,16 @@ model GalleryProject {
   updatedAt     DateTime       @updatedAt
 }
 
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String   // email or phone
+  message   String
+  read      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+}
+
 model Setting {
   id        String @id @default(cuid())
   key       String @unique

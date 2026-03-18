@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   ]},
   { label: 'תוכן', items: [
     { href: '/admin/gallery', icon: '▦', label: 'גלריה' },
+    { href: '/admin/contacts', icon: '✉', label: 'פניות' },
     { href: '/admin/settings', icon: '⚙', label: 'הגדרות' },
   ]},
 ];
