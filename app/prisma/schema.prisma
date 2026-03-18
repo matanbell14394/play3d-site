@@ -211,6 +211,7 @@ model GalleryProject {
   title         String
   description   String?
   imageUrl      String?        // Main thumbnail image
+  images        String         @default("[]") // JSON array of additional image URLs
 
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

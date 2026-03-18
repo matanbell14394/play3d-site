@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 
-interface GalleryItem { id: string; title: string; description: string | null; imageUrl: string | null; }
+interface GalleryItem { id: string; title: string; description: string | null; imageUrl: string | null; images: string; }
 
 export default function HomePage() {
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [imgIdx, setImgIdx] = useState(0);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
 
   useEffect(() => {
@@ -16,12 +17,20 @@ export default function HomePage() {
 
   useEffect(() => {
     if (lightbox === null) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null);
+      const item = galleryItems[lightbox];
+      if (!item) return;
+      let imgs: string[] = []; try { imgs = JSON.parse(item.images); } catch { imgs = []; }
+      const all = [item.imageUrl, ...imgs].filter(Boolean);
+      if (e.key === 'ArrowLeft') setImgIdx(i => (i + 1) % all.length);
+      if (e.key === 'ArrowRight') setImgIdx(i => (i - 1 + all.length) % all.length);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightbox]);
+  }, [lightbox, galleryItems]);
 
-  const openLightbox = (idx: number) => { setLightbox(idx); };
+  const openLightbox = (idx: number) => { setLightbox(idx); setImgIdx(0); };
 
   return (
     <>
@@ -253,7 +262,7 @@ export default function HomePage() {
           <div>
             <div className="cii">
               <div className="cii-icon">📞</div>
-              <div><div className="cii-lbl">טלפון / וואטסאפ</div><div className="cii-val">050-0000000</div></div>
+              <div><div className="cii-lbl">טלפון / וואטסאפ</div><div className="cii-val">052-6018145</div></div>
             </div>
             <div className="cii">
               <div className="cii-icon">✉️</div>
@@ -261,7 +270,7 @@ export default function HomePage() {
             </div>
             <div className="cii">
               <div className="cii-icon">📍</div>
-              <div><div className="cii-lbl">מיקום</div><div className="cii-val">תל אביב, ישראל</div></div>
+              <div><div className="cii-lbl">מיקום</div><div className="cii-val">טבעון, ישראל</div></div>
             </div>
             <div className="cii">
               <div className="cii-icon">⏰</div>
@@ -303,26 +312,40 @@ export default function HomePage() {
         </div>
         <div className="footer-bottom">
           <span className="footer-copy">© 2026 PLAY3D. כל הזכויות שמורות.</span>
-          <span className="footer-copy">עוצב ופותח באהבה 🖤</span>
         </div>
       </footer>
-      {/* LIGHTBOX */}
+      {/* LIGHTBOX - fullscreen */}
       {lightbox !== null && galleryItems[lightbox] && (() => {
         const item = galleryItems[lightbox];
+        let imgs: string[] = []; try { imgs = JSON.parse(item.images); } catch { imgs = []; }
+        const all = [item.imageUrl, ...imgs].filter(Boolean) as string[];
+        const cur = all[imgIdx] || all[0];
         return (
-          <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5%' }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, maxWidth: 560, width: '100%', overflow: 'hidden', position: 'relative' }}>
-              <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(255,255,255,.07)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, padding: '4px 10px', zIndex: 2 }}>✕</button>
-              <div style={{ background: 'var(--bg3)', height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 96, overflow: 'hidden' }}>
-                {item.imageUrl
-                  ? <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  : '🖼️'}
-              </div>
-              <div style={{ padding: '16px 20px' }}>
-                <div style={{ fontFamily: 'var(--font-orbitron), monospace', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{item.title}</div>
-                {item.description && <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.75, marginBottom: 16 }}>{item.description}</p>}
-                <a href="#order" onClick={() => setLightbox(null)} className="btn-hero" style={{ display: 'inline-block', fontSize: 13, padding: '10px 22px' }}>הזמן הדפסה דומה</a>
-              </div>
+          <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.96)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Close */}
+            <button onClick={() => setLightbox(null)} style={{ position: 'fixed', top: 18, left: 18, background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 16, padding: '6px 14px', zIndex: 2001 }}>✕</button>
+
+            {/* Main image - fullscreen */}
+            <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {cur && <img src={cur} alt={item.title} style={{ maxWidth: '90vw', maxHeight: '78vh', objectFit: 'contain', borderRadius: 12 }} />}
+              {all.length > 1 && <>
+                <button onClick={e => { e.stopPropagation(); setImgIdx(i => (i - 1 + all.length) % all.length); }} style={{ position: 'absolute', right: -48, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,.1)', border: 'none', color: '#fff', fontSize: 24, padding: '12px 16px', borderRadius: 8, cursor: 'pointer' }}>‹</button>
+                <button onClick={e => { e.stopPropagation(); setImgIdx(i => (i + 1) % all.length); }} style={{ position: 'absolute', left: -48, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,.1)', border: 'none', color: '#fff', fontSize: 24, padding: '12px 16px', borderRadius: 8, cursor: 'pointer' }}>›</button>
+              </>}
+            </div>
+
+            {/* Thumbnails + info */}
+            <div onClick={e => e.stopPropagation()} style={{ marginTop: 16, textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{item.title}</div>
+              {item.description && <p style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', marginBottom: 10 }}>{item.description}</p>}
+              {all.length > 1 && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+                  {all.map((u, i) => (
+                    <img key={i} src={u} alt="" onClick={() => setImgIdx(i)} style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, border: `2px solid ${i === imgIdx ? 'var(--teal)' : 'rgba(255,255,255,.2)'}`, cursor: 'pointer', transition: 'border-color .2s' }} />
+                  ))}
+                </div>
+              )}
+              <a href="#order" onClick={() => setLightbox(null)} className="btn-hero" style={{ display: 'inline-block', fontSize: 13, padding: '9px 22px' }}>הזמן הדפסה דומה</a>
             </div>
           </div>
         );

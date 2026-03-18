@@ -3,25 +3,28 @@ import prisma from '@/lib/prisma/prisma';
 
 export async function GET() {
   try {
-    const items = await prisma.galleryProject.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const items = await prisma.galleryProject.findMany({ orderBy: { createdAt: 'desc' } });
     return NextResponse.json(items);
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch gallery' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { title, description, imageUrl } = await req.json();
+    const { title, description, imageUrl, images } = await req.json();
     if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
 
     const item = await prisma.galleryProject.create({
-      data: { title, description: description || null, imageUrl: imageUrl || null },
+      data: {
+        title,
+        description: description || null,
+        imageUrl: imageUrl || null,
+        images: JSON.stringify(images || []),
+      },
     });
     return NextResponse.json(item, { status: 201 });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to create' }, { status: 500 });
   }
 }
