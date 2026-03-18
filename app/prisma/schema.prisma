@@ -217,6 +217,17 @@ model GalleryProject {
   updatedAt     DateTime       @updatedAt
 }
 
+model PrinterStatus {
+  id            String   @id @default("singleton")
+  status        String   @default("offline") // offline | idle | printing | paused | error
+  taskName      String?
+  progress      Int      @default(0)
+  makerWorldUrl String?
+  modelImageUrl String?
+  modelTitle    String?
+  updatedAt     DateTime @updatedAt
+}
+
 model ContactMessage {
   id        String   @id @default(cuid())
   name      String

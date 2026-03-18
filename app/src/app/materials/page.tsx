@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const MATERIALS = [
   {
@@ -93,6 +94,7 @@ function MaterialsContent() {
           <Link href="/#about" className="nl">אודות</Link>
           <Link href="/#contact" className="nl">צור קשר</Link>
           <Link href="/login" className="nl special">אזור לקוח</Link>
+          <ThemeToggle />
         </div>
       </nav>
 

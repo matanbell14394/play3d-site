@@ -37,6 +37,15 @@ function loadLayout(): { order: WidgetId[]; collapsed: WidgetId[] } {
   catch { return { order: DEFAULT_WIDGETS.map(w => w.id), collapsed: [] }; }
 }
 
+interface LivePrinter {
+  status: string;
+  taskName: string | null;
+  progress: number;
+  modelImageUrl: string | null;
+  modelTitle: string | null;
+  updatedAt: string | null;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashStats | null>(null);
   const [printerCollapsed, setPrinterCollapsed] = useState(false);
@@ -45,6 +54,9 @@ export default function DashboardPage() {
   const [dragging, setDragging] = useState<WidgetId | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [printerStatus, setPrinterStatus] = useState<'online' | 'offline' | 'printing' | 'paused'>('offline');
+  const [livePrinter, setLivePrinter] = useState<LivePrinter | null>(null);
+  const [mwUrl, setMwUrl] = useState('');
+  const [mwSaving, setMwSaving] = useState(false);
 
   useEffect(() => {
     fetch('/api/dashboard').then(r => r.json()).then(d => { if (!d.error) setStats(d); });
@@ -53,7 +65,18 @@ export default function DashboardPage() {
     if (layout.collapsed?.length) setCollapsed(layout.collapsed);
     const saved = localStorage.getItem('printer_status');
     if (saved) setPrinterStatus(saved as typeof printerStatus);
+    fetch('/api/printer-status').then(r => r.json()).then(d => {
+      if (d?.status) { setLivePrinter(d); setMwUrl(d.makerWorldUrl || ''); }
+    });
   }, []);
+
+  const saveMakerWorldUrl = async () => {
+    setMwSaving(true);
+    const res = await fetch('/api/printer-status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ makerWorldUrl: mwUrl }) });
+    const d = await res.json();
+    if (d?.status) setLivePrinter(d);
+    setMwSaving(false);
+  };
 
   const saveLayout = (newOrder: WidgetId[], newCollapsed: WidgetId[]) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ order: newOrder, collapsed: newCollapsed }));
@@ -125,10 +148,50 @@ export default function DashboardPage() {
         {header(meta.label)}
         {!isCollapsed && (
           <div style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: printerColors[printerStatus], boxShadow: `0 0 8px ${printerColors[printerStatus]}` }} />
-              <span style={{ fontWeight: 600, color: printerColors[printerStatus] }}>{printerLabels[printerStatus]}</span>
+            {/* Live status from bridge */}
+            {livePrinter && (
+              <div style={{ marginBottom: 14, padding: '10px 12px', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {livePrinter.modelImageUrl && (
+                    <img src={livePrinter.modelImageUrl} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: livePrinter.status === 'printing' ? '#10b981' : livePrinter.status === 'paused' ? '#f59e0b' : '#6b7280' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: livePrinter.status === 'printing' ? '#10b981' : livePrinter.status === 'paused' ? '#f59e0b' : 'var(--text3)' }}>
+                        {livePrinter.status === 'printing' ? 'מדפיס' : livePrinter.status === 'paused' ? 'מושהה' : livePrinter.status === 'idle' ? 'פנוי' : 'מנותק'}
+                      </span>
+                      {livePrinter.progress > 0 && <span style={{ fontSize: 12, color: 'var(--teal)', marginRight: 'auto' }}>{livePrinter.progress}%</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {livePrinter.modelTitle || livePrinter.taskName || '—'}
+                    </div>
+                    {livePrinter.updatedAt && (
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>עודכן {new Date(livePrinter.updatedAt).toLocaleTimeString('he-IL')}</div>
+                    )}
+                  </div>
+                </div>
+                {livePrinter.status === 'printing' && livePrinter.progress > 0 && (
+                  <div style={{ marginTop: 8, height: 4, background: 'var(--bg2)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${livePrinter.progress}%`, background: 'linear-gradient(90deg,var(--teal),var(--teal2))', transition: 'width .5s' }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MakerWorld URL for current model */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 5 }}>קישור MakerWorld למודל הנוכחי</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={mwUrl} onChange={e => setMwUrl(e.target.value)} placeholder="https://makerworld.com/en/models/..." style={{ flex: 1, padding: '6px 10px', fontSize: 12, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text1)', fontFamily: 'inherit' }} />
+                <button onClick={saveMakerWorldUrl} disabled={mwSaving} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--teal)', background: 'var(--teal3)', color: 'var(--teal)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', opacity: mwSaving ? .6 : 1 }}>
+                  {mwSaving ? '...' : 'שמור'}
+                </button>
+              </div>
             </div>
+
+            {/* Manual status buttons */}
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6 }}>עדכון ידני (גיבוי)</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {(['online', 'offline', 'printing', 'paused'] as const).map(s => (
                 <button key={s} onClick={() => { setPrinterStatus(s); localStorage.setItem('printer_status', s); }}
