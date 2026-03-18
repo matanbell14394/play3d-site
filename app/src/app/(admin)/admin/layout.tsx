@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       {/* Sidebar */}
       <nav className="sidebar">
         <div className="sb-logo">
-          <div className="logo">PLAY3D</div>
+          <div className="logo"><span className="nav-logo-play">PLAY</span><span className="nav-logo-3d">3D</span></div>
           <div className="sub">ADMIN</div>
         </div>
         <div className="nav-sec">
@@ -72,7 +72,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
       {/* Top nav bar overlay */}
       <nav className="nav" style={{ zIndex: 600 }}>
-        <Link href="/" className="nav-logo">PLAY3D</Link>
+        <Link href="/" className="nav-logo"><span className="nav-logo-play">PLAY</span><span className="nav-logo-3d">3D</span></Link>
         <div className="nav-links">
           <Link href="/" className="nl">← אתר ראשי</Link>
           <ThemeToggle />

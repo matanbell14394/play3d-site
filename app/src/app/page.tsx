@@ -131,7 +131,9 @@ export default function HomePage() {
 
       {/* NAV */}
       <nav className="nav">
-        <div className="nav-logo">PLAY3D</div>
+        <div className="nav-logo">
+          <span className="nav-logo-play">PLAY</span><span className="nav-logo-3d">3D</span>
+        </div>
         <div className="nav-links">
           <Link href="/" className="nl active">בית</Link>
           <Link href="/materials" className="nl">חומרים</Link>
