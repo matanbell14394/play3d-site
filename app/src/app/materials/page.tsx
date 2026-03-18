@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import Link from 'next/link';
 
 const MATERIALS = [
@@ -68,10 +69,15 @@ function RatingDots({ count, total = 5, color }: { count: number; total?: number
   );
 }
 
-export default function MaterialsPage() {
-  const [selected, setSelected] = useState<string | null>(null);
+function MaterialsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selected = searchParams.get('m');
 
   const activeMat = MATERIALS.find((m) => m.id === selected);
+
+  const selectMaterial = (id: string) => router.push(`/materials?m=${id}`);
+  const clearMaterial = () => router.push('/materials');
 
   return (
     <>
@@ -95,7 +101,7 @@ export default function MaterialsPage() {
         {activeMat ? (
           <div>
             <button
-              onClick={() => setSelected(null)}
+              onClick={() => clearMaterial()}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 7, border: '1px solid var(--border2)', color: 'var(--text2)', background: 'transparent', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 20, transition: 'all .2s' }}
             >
               ← חזרה לכל החומרים
@@ -163,7 +169,7 @@ export default function MaterialsPage() {
               {MATERIALS.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => setSelected(m.id)}
+                  onClick={() => selectMaterial(m.id)}
                   style={{ flex: 1, padding: 13, textAlign: 'center', background: m.bgColor, cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}
                 >
                   <div style={{ fontFamily: 'var(--font-orbitron), monospace', fontSize: 13, fontWeight: 700, color: m.color }}>{m.name}</div>
@@ -175,7 +181,7 @@ export default function MaterialsPage() {
             {/* Material cards */}
             <div className="mat-cards">
               {MATERIALS.map((m) => (
-                <div key={m.id} className="mat-card" onClick={() => setSelected(m.id)}>
+                <div key={m.id} className="mat-card" onClick={() => selectMaterial(m.id)}>
                   <div className="mat-top" style={{ background: m.bgColor }}>
                     <div className="mat-abbr" style={{ color: m.color }}>{m.name}</div>
                     <div style={{ fontSize: 52 }}>{m.emoji}</div>
@@ -264,5 +270,13 @@ export default function MaterialsPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function MaterialsPage() {
+  return (
+    <Suspense>
+      <MaterialsContent />
+    </Suspense>
   );
 }
