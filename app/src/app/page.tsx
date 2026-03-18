@@ -138,7 +138,7 @@ export default function HomePage() {
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
           <div className="hero-tag">🖨️ &nbsp; הדפסות תלת מימד מקצועיות</div>
           <h1 className="hero-title">
-            <span className="t">3D</span> — <span className="p">מהחלום</span> למציאות
+            <span className="t">3D</span> — <span className="p">מחלום</span> למציאות
           </h1>
           <p className="hero-sub">
             ממודלים ועד אבות טיפוס תעשייתיים — אנו מממשים כל רעיון בחומרים איכותיים ודיוק מרשים.
