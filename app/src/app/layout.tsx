@@ -3,6 +3,7 @@ import { Orbitron, Noto_Sans_Hebrew } from "next/font/google";
 import "@/styles/globals.css";
 import { ThemeProvider } from "./theme-provider";
 import { Providers } from "./providers";
+import LiveVisitors from "@/components/LiveVisitors";
 
 const orbitron = Orbitron({
   variable: "--font-orbitron",
@@ -34,7 +35,10 @@ export default function RootLayout({
           defaultTheme="dark"
           disableTransitionOnChange
         >
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <LiveVisitors />
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

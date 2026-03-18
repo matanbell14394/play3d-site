@@ -69,8 +69,6 @@ export default function HomePage() {
   const [estimate, setEstimate] = useState<ModelEstimate | null>(null);
   const [estimateError, setEstimateError] = useState('');
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus | null>(null);
-  const [visitors, setVisitors] = useState<number | null>(null);
-
   useEffect(() => {
     fetch('/api/gallery').then(r => r.json()).then(d => { if (Array.isArray(d)) setGalleryItems(d); });
     fetch('/api/printer-status').then(r => r.json()).then(d => { if (d?.status) setPrinterStatus(d); });
@@ -78,20 +76,6 @@ export default function HomePage() {
       fetch('/api/printer-status').then(r => r.json()).then(d => { if (d?.status) setPrinterStatus(d); });
     }, 15000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Live visitor heartbeat
-  useEffect(() => {
-    let sessionId = sessionStorage.getItem('_sid');
-    if (!sessionId) { sessionId = Math.random().toString(36).slice(2); sessionStorage.setItem('_sid', sessionId); }
-
-    const beat = () =>
-      fetch('/api/visitors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) })
-        .then(r => r.json()).then(d => { if (typeof d.count === 'number') setVisitors(d.count); }).catch(() => {});
-
-    beat();
-    const t = setInterval(beat, 60000);
-    return () => clearInterval(t);
   }, []);
 
   const estimateModel = async () => {
@@ -143,12 +127,6 @@ export default function HomePage() {
           <a href="#contact" className="nl">צור קשר</a>
           <Link href="/login" className="nl special">אזור לקוח</Link>
           <Link href="/admin/dashboard" className="nl cta">ניהול</Link>
-          {visitors !== null && visitors > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              {visitors} {visitors === 1 ? 'גולש' : 'גולשים'} כעת
-            </div>
-          )}
           <ThemeToggle />
         </div>
       </nav>
