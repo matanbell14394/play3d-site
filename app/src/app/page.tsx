@@ -98,7 +98,7 @@ export default function HomePage() {
             <span className="t">3D</span> — <span className="p">מהחלום</span> למציאות
           </h1>
           <p className="hero-sub">
-            מפיגורינות ועד אבות טיפוס תעשייתיים — אנו מממשים כל רעיון בחומרים איכותיים ודיוק מרשים.
+            ממודלים ועד אבות טיפוס תעשייתיים — אנו מממשים כל רעיון בחומרים איכותיים ודיוק מרשים.
           </p>
           <div className="hero-btns">
             <a href="#order" className="btn-hero">הזמן הדפסה עכשיו</a>
@@ -137,7 +137,7 @@ export default function HomePage() {
           <div className="srv-card">
             <div className="srv-icon">🖨️</div>
             <div className="srv-name">FDM PRINTING</div>
-            <p className="srv-desc">פילמנט PLA, PETG, ABS, TPU בגדלים מגוונים. מושלם לאבות טיפוס ופיגורינות.</p>
+            <p className="srv-desc">פילמנט PLA, PETG, ABS, TPU בגדלים מגוונים. מושלם לאבות טיפוס ומודלים.</p>
           </div>
           <div className="srv-card">
             <div className="srv-icon">✏️</div>
@@ -322,7 +322,7 @@ export default function HomePage() {
         <div className="footer-top">
           <div>
             <div className="footer-logo">PLAY3D</div>
-            <p className="footer-desc">סטודיו הדפסות תלת מימד. מפיגורינות ועד חלקים תעשייתיים — אנחנו כאן.</p>
+            <p className="footer-desc">סטודיו הדפסות תלת מימד. ממודלים ועד חלקים תעשייתיים — אנחנו כאן.</p>
           </div>
           <div>
             <div className="footer-col-title">ניווט</div>
