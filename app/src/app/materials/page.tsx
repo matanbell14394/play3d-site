@@ -137,7 +137,6 @@ function MaterialsContent() {
               <div>
                 <div className="mat-specs-mini" style={{ gridTemplateColumns: '1fr 1fr' }}>
                   <div className="mspec"><div className="mspec-lbl">עמידות חום</div><div className="mspec-val" style={{ color: activeMat.color }}>{activeMat.specs.temp}</div></div>
-                  <div className="mspec"><div className="mspec-lbl">מחיר לק"ג</div><div className="mspec-val">{activeMat.specs.price}</div></div>
                   <div className="mspec"><div className="mspec-lbl">Enclosure</div><div className="mspec-val">{activeMat.specs.enclosure}</div></div>
                   <div className="mspec">
                     <div className="mspec-lbl">קלות הדפסה</div>
@@ -200,7 +199,6 @@ function MaterialsContent() {
                     </div>
                     <div className="mat-specs-mini">
                       <div className="mspec"><div className="mspec-lbl">עמידות חום</div><div className="mspec-val" style={{ color: m.color }}>{m.specs.temp}</div></div>
-                      <div className="mspec"><div className="mspec-lbl">מחיר</div><div className="mspec-val">{m.specs.price}</div></div>
                     </div>
                     <button
                       className="mat-cta-link"
@@ -257,9 +255,9 @@ function MaterialsContent() {
                       ))}
                     </tr>
                     <tr>
-                      <td>מחיר לק"ג</td>
+                      <td style={{display:'none'}}></td>
                       {MATERIALS.map((m) => (
-                        <td key={m.id} style={{ color: m.color }}>{m.specs.price}</td>
+                        <td key={m.id} style={{ display:'none' }}>{m.specs.price}</td>
                       ))}
                     </tr>
                   </tbody>
