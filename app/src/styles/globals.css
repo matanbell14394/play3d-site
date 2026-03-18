@@ -166,7 +166,7 @@ a { text-decoration: none; color: inherit; }
 
 .nav-logo {
   font-family: var(--font-orbitron), 'Orbitron', monospace;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 900;
   letter-spacing: 2px;
   cursor: pointer;
@@ -176,6 +176,7 @@ a { text-decoration: none; color: inherit; }
   align-items: flex-end;
   gap: 1px;
   line-height: 1;
+  direction: ltr;
 }
 .nav-logo-play {
   -webkit-text-fill-color: transparent;
@@ -189,7 +190,7 @@ a { text-decoration: none; color: inherit; }
 .nav-logo-3d {
   -webkit-text-fill-color: transparent;
   -webkit-text-stroke: 1.5px var(--pink);
-  font-size: 16px;
+  font-size: 20px;
   letter-spacing: 1px;
   padding-bottom: 1px;
   text-shadow:
