@@ -190,9 +190,9 @@ a { text-decoration: none; color: inherit; }
 .nav-logo-3d {
   -webkit-text-fill-color: transparent;
   -webkit-text-stroke: 1.5px var(--pink);
-  font-size: 20px;
-  letter-spacing: 1px;
-  padding-bottom: 1px;
+  font-size: 28px;
+  letter-spacing: 2px;
+  padding-bottom: 0;
   text-shadow:
     0 0 6px var(--pink),
     0 0 14px var(--pink),
