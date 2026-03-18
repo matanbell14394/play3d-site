@@ -42,14 +42,56 @@ function ContactForm() {
   );
 }
 
+interface PrinterStatus {
+  status: string;
+  taskName: string | null;
+  progress: number;
+  modelImageUrl: string | null;
+  modelTitle: string | null;
+  updatedAt: string | null;
+}
+
+interface ModelEstimate {
+  title: string;
+  printTimeFormatted: string | null;
+  filamentGrams: number | null;
+  materialName: string | null;
+  estimatedPrice: number | null;
+  breakdown: { filamentCost: number; printCost: number };
+}
+
 export default function HomePage() {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [imgIdx, setImgIdx] = useState(0);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [modelUrl, setModelUrl] = useState('');
+  const [estimating, setEstimating] = useState(false);
+  const [estimate, setEstimate] = useState<ModelEstimate | null>(null);
+  const [estimateError, setEstimateError] = useState('');
+  const [printerStatus, setPrinterStatus] = useState<PrinterStatus | null>(null);
 
   useEffect(() => {
     fetch('/api/gallery').then(r => r.json()).then(d => { if (Array.isArray(d)) setGalleryItems(d); });
+    fetch('/api/printer-status').then(r => r.json()).then(d => { if (d?.status) setPrinterStatus(d); });
+    const interval = setInterval(() => {
+      fetch('/api/printer-status').then(r => r.json()).then(d => { if (d?.status) setPrinterStatus(d); });
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
+
+  const estimateModel = async () => {
+    if (!modelUrl.trim()) return;
+    setEstimating(true);
+    setEstimate(null);
+    setEstimateError('');
+    try {
+      const res = await fetch('/api/estimate-model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: modelUrl }) });
+      const data = await res.json();
+      if (!res.ok || data.error) setEstimateError(data.error || 'שגיאה בהערכה');
+      else setEstimate(data);
+    } catch { setEstimateError('שגיאת חיבור'); }
+    setEstimating(false);
+  };
 
   useEffect(() => {
     if (lightbox === null) return;
@@ -124,6 +166,51 @@ export default function HomePage() {
           <div className="scroll-hint-txt">גלול</div>
         </div>
       </section>
+
+      {/* LIVE PRINTER STATUS */}
+      {printerStatus && printerStatus.status !== 'offline' && (
+        <div style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '14px 0' }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {/* Status dot */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: printerStatus.status === 'printing' ? '#10b981' : printerStatus.status === 'paused' ? '#f59e0b' : '#6b7280',
+                boxShadow: printerStatus.status === 'printing' ? '0 0 8px #10b981' : 'none',
+                animation: printerStatus.status === 'printing' ? 'pulse 2s infinite' : 'none',
+              }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: printerStatus.status === 'printing' ? '#10b981' : printerStatus.status === 'paused' ? '#f59e0b' : 'var(--text3)' }}>
+                {printerStatus.status === 'printing' ? 'מדפיס עכשיו' : printerStatus.status === 'paused' ? 'מושהה' : 'בקרוב'}
+              </span>
+            </div>
+
+            {/* Model image */}
+            {printerStatus.modelImageUrl && (
+              <img src={printerStatus.modelImageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0 }} />
+            )}
+
+            {/* Model info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {printerStatus.modelTitle || printerStatus.taskName || 'מודל לא ידוע'}
+              </div>
+              {printerStatus.taskName && printerStatus.modelTitle && (
+                <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{printerStatus.taskName}</div>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {printerStatus.status === 'printing' && printerStatus.progress > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{ width: 120, height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${printerStatus.progress}%`, background: 'linear-gradient(90deg,var(--teal),var(--teal2))', borderRadius: 3, transition: 'width .5s' }} />
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--teal)', fontWeight: 700, minWidth: 32 }}>{printerStatus.progress}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* SERVICES */}
       <section className="section alt" style={{ position: 'relative' }}>
@@ -200,16 +287,15 @@ export default function HomePage() {
             </p>
             <ul className="about-list">
               <li>ציוד מקצועי ומדויק מהיצרנים המובילים</li>
-              <li>מעל 500 פרויקטים מוצלחים ב-3 שנים</li>
+              <li>מעל 500 פרויקטים מוצלחים ב-6 שנים</li>
               <li>הדפסה ביותר מ-20 סוגי חומרים</li>
-              <li>מסירה תוך 24–72 שעות</li>
               <li>תמיכה וייעוץ אישי בכל שלב</li>
             </ul>
           </div>
           <div className="about-visual">
             <div className="about-box">
               <div className="about-emoji">🖨️</div>
-              <div className="about-year">SINCE 2022</div>
+              <div className="about-year">SINCE 2019</div>
               <div className="about-big">3D</div>
             </div>
           </div>
@@ -281,6 +367,42 @@ export default function HomePage() {
             </div>
             <div className="fg"><label>כמות</label><input type="number" defaultValue={1} min={1} /></div>
             <div className="fg"><label>קובץ STL</label><input type="file" accept=".stl,.obj,.3mf" style={{ padding: '8px 12px' }} /></div>
+            <div className="fg full">
+              <label>קישור מ-MakerWorld (אופציונלי)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder="https://makerworld.com/en/models/..."
+                  value={modelUrl}
+                  onChange={e => { setModelUrl(e.target.value); setEstimate(null); setEstimateError(''); }}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={estimateModel}
+                  disabled={estimating || !modelUrl.trim()}
+                  style={{ padding: '0 16px', borderRadius: 8, border: '1px solid var(--teal)', background: 'var(--teal3)', color: 'var(--teal)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: estimating ? .6 : 1 }}
+                >
+                  {estimating ? '...' : 'הערך מחיר'}
+                </button>
+              </div>
+              {estimateError && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}>{estimateError}</div>}
+              {estimate && (
+                <div style={{ marginTop: 10, background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--teal)', marginBottom: 6 }}>📦 {estimate.title}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    {estimate.printTimeFormatted && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>זמן הדפסה</div><div style={{ color: 'var(--text1)' }}>{estimate.printTimeFormatted}</div></div>}
+                    {estimate.filamentGrams && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>חומר</div><div style={{ color: 'var(--text1)' }}>{estimate.filamentGrams}g</div></div>}
+                    {estimate.materialName && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>סוג</div><div style={{ color: 'var(--text1)' }}>{estimate.materialName}</div></div>}
+                  </div>
+                  {estimate.estimatedPrice && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>הערכת מחיר (כולל חומר + הפעלה)</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--teal)' }}>₪{estimate.estimatedPrice}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="fg full"><label>תיאור הפרויקט</label><textarea placeholder="גודל, צבע, שימוש, רמת פינוי..." /></div>
             <Link href="/order" className="submit-btn-big" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>🚀 שלח הזמנה + הצטרף</Link>
           </div>
