@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const NAV_ITEMS = [
   { label: 'ראשי', items: [
@@ -75,6 +76,7 @@ export default function AdminSidebar({ initials, name, role }: Props) {
             <div className="s-name">{name}</div>
             <div className="s-role">{role}</div>
           </div>
+          <ThemeToggle />
           <form action="/api/auth/signout" method="post">
             <button type="submit" className="logout-btn">יציאה</button>
           </form>
