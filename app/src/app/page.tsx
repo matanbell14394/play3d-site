@@ -107,6 +107,7 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox, galleryItems]);
 
+  const [mobileMenu, setMobileMenu] = useState(false);
   const openLightbox = (idx: number) => { setLightbox(idx); setImgIdx(0); };
 
   return (
@@ -118,6 +119,7 @@ export default function HomePage() {
         <div className="nav-logo">
           <span className="nav-logo-play">PLAY</span><span className="nav-logo-3d">3D</span>
         </div>
+        {/* Desktop links */}
         <div className="nav-links">
           <Link href="/" className="nl active">בית</Link>
           <Link href="/materials" className="nl">חומרים</Link>
@@ -129,7 +131,32 @@ export default function HomePage() {
           <Link href="/admin/dashboard" className="nl cta">ניהול</Link>
           <ThemeToggle />
         </div>
+        {/* Mobile right side */}
+        <div className="nav-mobile-right">
+          <ThemeToggle />
+          <button className="burger" onClick={() => setMobileMenu(m => !m)} aria-label="תפריט">
+            <span className={mobileMenu ? 'bline open' : 'bline'} />
+            <span className={mobileMenu ? 'bline open' : 'bline'} />
+            <span className={mobileMenu ? 'bline open' : 'bline'} />
+          </button>
+        </div>
       </nav>
+      {/* Mobile menu drawer */}
+      {mobileMenu && (
+        <div className="mobile-drawer" onClick={() => setMobileMenu(false)}>
+          <div className="mobile-drawer-inner" onClick={e => e.stopPropagation()}>
+            <Link href="/" className="mdl" onClick={() => setMobileMenu(false)}>בית</Link>
+            <Link href="/materials" className="mdl" onClick={() => setMobileMenu(false)}>חומרים</Link>
+            <a href="#gallery" className="mdl" onClick={() => setMobileMenu(false)}>גלריה</a>
+            <a href="#reviews" className="mdl" onClick={() => setMobileMenu(false)}>ביקורות</a>
+            <a href="#about" className="mdl" onClick={() => setMobileMenu(false)}>אודות</a>
+            <a href="#contact" className="mdl" onClick={() => setMobileMenu(false)}>צור קשר</a>
+            <div className="mdl-divider" />
+            <Link href="/login" className="mdl mdl-special" onClick={() => setMobileMenu(false)}>אזור לקוח</Link>
+            <Link href="/admin/dashboard" className="mdl mdl-cta" onClick={() => setMobileMenu(false)}>ניהול</Link>
+          </div>
+        </div>
+      )}
 
       {/* HERO */}
       <section className="hero">
