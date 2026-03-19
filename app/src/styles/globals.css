@@ -295,6 +295,7 @@ a { text-decoration: none; color: inherit; }
 .mdl-special:hover { background: var(--pink2); color: var(--pink); }
 .mdl-cta { color: var(--teal); font-weight: 700; }
 .mdl-cta:hover { background: var(--teal3); }
+.mdl-active { color: var(--teal); background: var(--teal3); }
 
 @media (max-width: 640px) {
   .nav-links { display: none !important; }

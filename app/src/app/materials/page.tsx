@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import ThemeToggle from '@/components/ThemeToggle';
+import SiteNav from '@/components/SiteNav';
 
 const MATERIALS = [
   {
@@ -84,19 +84,7 @@ function MaterialsContent() {
     <>
       <div className="grid-bg" />
 
-      {/* NAV */}
-      <nav className="nav">
-        <Link href="/" className="nav-logo">PLAY3D</Link>
-        <div className="nav-links">
-          <Link href="/" className="nl">בית</Link>
-          <Link href="/materials" className="nl active">חומרים</Link>
-          <Link href="/#gallery" className="nl">גלריה</Link>
-          <Link href="/#about" className="nl">אודות</Link>
-          <Link href="/#contact" className="nl">צור קשר</Link>
-          <Link href="/login" className="nl special">אזור לקוח</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <SiteNav active="materials" />
 
       <div className="section" style={{ paddingTop: 80 }}>
         {/* Material detail view */}
