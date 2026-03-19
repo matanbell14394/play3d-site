@@ -240,6 +240,59 @@ a { text-decoration: none; color: inherit; }
 .nl.cta:hover { background: var(--teal); color: var(--bg); }
 
 /* =============================================
+   MOBILE HAMBURGER + DRAWER
+   ============================================= */
+.nav-mobile-right { display: none; align-items: center; gap: 8px; }
+
+.burger {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--teal3); border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 5px; cursor: pointer; padding: 0;
+}
+.bline {
+  display: block; width: 18px; height: 2px;
+  background: var(--teal); border-radius: 2px;
+  transition: transform .25s, opacity .25s;
+}
+.bline.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.bline.open:nth-child(2) { opacity: 0; }
+.bline.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.mobile-drawer {
+  position: fixed; inset: 0; z-index: 490;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.mobile-drawer-inner {
+  position: absolute; top: 60px; left: 0; right: 0;
+  background: rgba(11,15,30,0.97);
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 8px 0 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.mdl {
+  padding: 14px 24px; font-size: 16px; color: var(--text2);
+  text-decoration: none; border: none; background: none;
+  font-family: inherit; cursor: pointer; text-align: right;
+  transition: color .2s, background .2s;
+}
+.mdl:hover { color: var(--teal); background: var(--teal3); }
+.mdl-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+.mdl-special { color: var(--pink); font-weight: 600; }
+.mdl-special:hover { background: var(--pink2); color: var(--pink); }
+.mdl-cta { color: var(--teal); font-weight: 700; }
+.mdl-cta:hover { background: var(--teal3); }
+
+@media (max-width: 640px) {
+  .nav-links { display: none !important; }
+  .nav-mobile-right { display: flex; }
+}
+
+/* =============================================
    HERO
    ============================================= */
 .hero {
