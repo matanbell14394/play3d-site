@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma/prisma';
+import { requireAdmin } from '@/lib/auth/requireAdmin';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAdmin();
+  if (error) return error;
   try {
     const { id } = await params;
     const { title, description, imageUrl, images } = await req.json();
@@ -21,6 +24,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = await requireAdmin();
+  if (error) return error;
   try {
     const { id } = await params;
     await prisma.galleryProject.delete({ where: { id } });

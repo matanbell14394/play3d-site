@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma/prisma';
+import { requireAdmin } from '@/lib/auth/requireAdmin';
 
 const BRIDGE_SECRET = process.env.PRINTER_BRIDGE_SECRET || 'change-me-secret';
 
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH — called by admin to set MakerWorld URL and fetch model image
 export async function PATCH(req: NextRequest) {
+  const { error } = await requireAdmin();
+  if (error) return error;
   try {
     const { makerWorldUrl } = await req.json();
 
