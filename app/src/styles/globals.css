@@ -6,22 +6,22 @@
    PLAY3D DESIGN SYSTEM — v3
    ============================================= */
 :root {
-  --bg: #05070f;
-  --bg2: #0a0d1a;
-  --bg3: #0f1325;
-  --teal: #00eedd;
-  --teal2: #00c4b0;
-  --teal3: rgba(0, 238, 221, 0.1);
-  --teal-glow: rgba(0, 238, 221, 0.3);
-  --pink: #ff3080;
-  --pink2: rgba(255, 48, 128, 0.1);
-  --pink-glow: rgba(255, 48, 128, 0.3);
-  --text: #f0f2f8;
-  --text2: #a8b4c8;
-  --text3: #5a6a80;
-  --border: rgba(0, 238, 221, 0.15);
-  --border2: rgba(255, 255, 255, 0.09);
-  --gold: #f5cb50;
+  --bg: #0b0f1e;
+  --bg2: #111628;
+  --bg3: #161c32;
+  --teal: #00f0e0;
+  --teal2: #00ccbb;
+  --teal3: rgba(0, 240, 224, 0.12);
+  --teal-glow: rgba(0, 240, 224, 0.35);
+  --pink: #ff4090;
+  --pink2: rgba(255, 64, 144, 0.12);
+  --pink-glow: rgba(255, 64, 144, 0.35);
+  --text: #f4f6fc;
+  --text2: #b8c4d8;
+  --text3: #6a7a90;
+  --border: rgba(0, 240, 224, 0.18);
+  --border2: rgba(255, 255, 255, 0.11);
+  --gold: #f7d060;
 
   /* Shadcn compatibility */
   --background: 240 10% 3.9%;
@@ -339,7 +339,7 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 18px;
-  background: rgba(10,14,28,0.88);
+  background: rgba(15,20,38,0.88);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-shadow);
@@ -427,7 +427,7 @@ a { text-decoration: none; color: inherit; }
 .fg { display: flex; flex-direction: column; gap: 5px; }
 .fg label { font-size: 11px; color: var(--text2); letter-spacing: 0.5px; }
 .fg input, .fg select, .fg textarea {
-  background: rgba(10,14,28,0.7);
+  background: rgba(15,20,38,0.75);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   padding: 11px 14px;
@@ -459,7 +459,7 @@ a { text-decoration: none; color: inherit; }
    LIQUID GLASS SYSTEM
    ============================================= */
 :root {
-  --glass-bg: rgba(10,14,28,0.82);
+  --glass-bg: rgba(15,20,38,0.82);
   --glass-border: rgba(255,255,255,0.07);
   --glass-shine: rgba(255,255,255,0.07);
   --glass-blur: blur(14px) saturate(140%);
@@ -473,7 +473,7 @@ a { text-decoration: none; color: inherit; }
    CARD
    ============================================= */
 .card {
-  background: rgba(10,14,28,0.88);
+  background: rgba(15,20,38,0.88);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.07);
@@ -503,7 +503,7 @@ a { text-decoration: none; color: inherit; }
    ============================================= */
 .sg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 13px; margin-bottom: 22px; }
 .sc {
-  background: rgba(10,14,28,0.85);
+  background: rgba(15,20,38,0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -546,7 +546,7 @@ a { text-decoration: none; color: inherit; }
    ============================================= */
 .srv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
 .srv-card {
-  background: rgba(10,14,28,0.85);
+  background: rgba(15,20,38,0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -617,7 +617,7 @@ a { text-decoration: none; color: inherit; }
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
 .about-visual { }
 .about-box {
-  background: rgba(10,14,28,0.85);
+  background: rgba(15,20,38,0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -653,7 +653,7 @@ a { text-decoration: none; color: inherit; }
    ============================================= */
 .rev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
 .rev-card {
-  background: rgba(10,14,28,0.85);
+  background: rgba(15,20,38,0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -683,7 +683,7 @@ a { text-decoration: none; color: inherit; }
    ORDER FORM
    ============================================= */
 .order-wrap {
-  background: rgba(10,14,28,0.88);
+  background: rgba(15,20,38,0.88);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -732,7 +732,7 @@ a { text-decoration: none; color: inherit; }
    ============================================= */
 .mat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 8px; }
 .mat-card {
-  background: rgba(10,14,28,0.85);
+  background: rgba(15,20,38,0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid rgba(255,255,255,0.09);
