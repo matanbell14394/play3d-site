@@ -244,11 +244,17 @@ a { text-decoration: none; color: inherit; }
    ============================================= */
 .nav-mobile-right { display: none; align-items: center; gap: 8px; }
 
-.burger {
+.burger, .admin-burger {
   width: 38px; height: 38px; border-radius: 10px;
   background: var(--teal3); border: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 5px; cursor: pointer; padding: 0;
+}
+.admin-burger {
+  display: none;
+  position: fixed;
+  top: 11px; left: 12px;
+  z-index: 610;
 }
 .bline {
   display: block; width: 18px; height: 2px;
@@ -953,9 +959,24 @@ a { text-decoration: none; color: inherit; }
   .footer-top { grid-template-columns: 1fr; gap: 20px; }
   .footer { padding: 24px 4%; }
 
-  /* Admin sidebar */
-  .sidebar { width: 100%; height: auto; position: relative; top: 0; }
+  /* Admin sidebar — mobile slide-in */
+  .sidebar {
+    position: fixed;
+    top: 60px; right: -220px;
+    height: calc(100vh - 60px);
+    transition: right .28s cubic-bezier(.4,0,.2,1);
+    z-index: 550;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  }
+  .sidebar.sidebar-open { right: 0; }
   .admin-content { margin-right: 0; padding: 16px; }
+  .admin-burger { display: flex; }
+  .admin-backdrop {
+    position: fixed; inset: 0; z-index: 540;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
 
   /* Contact */
   .contact-grid { grid-template-columns: 1fr; }
