@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 interface DashStats {
@@ -38,9 +38,18 @@ const DEFAULT_WIDGETS: { id: WidgetId; label: string }[] = [
 const STORAGE_KEY = 'dashboard_layout';
 
 function loadLayout(): { order: WidgetId[]; collapsed: WidgetId[] } {
-  if (typeof window === 'undefined') return { order: DEFAULT_WIDGETS.map(w => w.id), collapsed: [] };
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || { order: DEFAULT_WIDGETS.map(w => w.id), collapsed: [] }; }
-  catch { return { order: DEFAULT_WIDGETS.map(w => w.id), collapsed: [] }; }
+  const allIds = DEFAULT_WIDGETS.map(w => w.id);
+  if (typeof window === 'undefined') return { order: allIds, collapsed: [] };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const savedOrder: WidgetId[] = saved.order || [];
+    // merge: keep saved order, append any new widgets not yet in saved
+    const merged = [
+      ...savedOrder.filter(id => allIds.includes(id)),
+      ...allIds.filter(id => !savedOrder.includes(id)),
+    ];
+    return { order: merged, collapsed: saved.collapsed || [] };
+  } catch { return { order: allIds, collapsed: [] }; }
 }
 
 interface LivePrinter {
@@ -57,7 +66,8 @@ export default function DashboardPage() {
   const [printerCollapsed, setPrinterCollapsed] = useState(false);
   const [collapsed, setCollapsed] = useState<WidgetId[]>([]);
   const [order, setOrder] = useState<WidgetId[]>(DEFAULT_WIDGETS.map(w => w.id));
-  const [dragging, setDragging] = useState<WidgetId | null>(null);
+  const draggingRef = useRef<WidgetId | null>(null);
+  const [dragOver, setDragOver] = useState<WidgetId | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [printerStatus, setPrinterStatus] = useState<'online' | 'offline' | 'printing' | 'paused'>('offline');
   const [livePrinter, setLivePrinter] = useState<LivePrinter | null>(null);
@@ -94,17 +104,27 @@ export default function DashboardPage() {
     saveLayout(order, next);
   };
 
-  const onDragStart = (id: WidgetId) => setDragging(id);
+  const onDragStart = (e: React.DragEvent, id: WidgetId) => {
+    draggingRef.current = id;
+    e.dataTransfer.effectAllowed = 'move';
+  };
   const onDragOver = (e: React.DragEvent, id: WidgetId) => {
     e.preventDefault();
-    if (!dragging || dragging === id) return;
-    const arr = [...order];
-    const from = arr.indexOf(dragging);
-    const to = arr.indexOf(id);
-    arr.splice(from, 1); arr.splice(to, 0, dragging);
-    setOrder(arr);
+    setDragOver(id);
   };
-  const onDragEnd = () => { setDragging(null); saveLayout(order, collapsed); };
+  const onDrop = (e: React.DragEvent, targetId: WidgetId) => {
+    e.preventDefault();
+    setDragOver(null);
+    if (!draggingRef.current || draggingRef.current === targetId) return;
+    const arr = [...order];
+    const from = arr.indexOf(draggingRef.current);
+    const to = arr.indexOf(targetId);
+    arr.splice(from, 1); arr.splice(to, 0, draggingRef.current);
+    draggingRef.current = null;
+    setOrder(arr);
+    saveLayout(arr, collapsed);
+  };
+  const onDragEnd = () => { draggingRef.current = null; setDragOver(null); };
 
   const printerColors = { online: '#10b981', offline: '#6b7280', printing: '#8b5cf6', paused: '#f59e0b' };
   const printerLabels = { online: 'מחובר', offline: 'לא מחובר', printing: 'מדפיס', paused: 'מושהה' };
@@ -112,6 +132,15 @@ export default function DashboardPage() {
   const Widget = ({ id }: { id: WidgetId }) => {
     const isCollapsed = collapsed.includes(id);
     const meta = DEFAULT_WIDGETS.find(w => w.id === id)!;
+    const isDragOver = dragOver === id && draggingRef.current !== id;
+
+    const dragProps = editMode ? {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => onDragStart(e, id),
+      onDragOver: (e: React.DragEvent) => onDragOver(e, id),
+      onDrop: (e: React.DragEvent) => onDrop(e, id),
+      onDragEnd,
+    } : {};
 
     const header = (label: string, link?: { href: string; text: string }) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: isCollapsed ? 'none' : '1px solid var(--border)', cursor: editMode ? 'grab' : 'default' }}>
@@ -129,14 +158,14 @@ export default function DashboardPage() {
     );
 
     if (id === 'stats') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ gridColumn: '1/-1', opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ gridColumn: '1/-1', outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label)}
         {!isCollapsed && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, padding: '0 0 0 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1 }}>
             {[
               { lbl: 'הזמנות פתוחות', val: stats?.openOrders ?? '—', color: 'var(--teal)' },
-              { lbl: 'הכנסות', val: stats ? `₪${stats.revenue.toFixed(0)}` : '—', color: '#ec4899' },
-              { lbl: 'לקוחות', val: stats?.totalUsers ?? '—', color: 'var(--teal)' },
+              { lbl: 'הכנסות מכירות', val: stats ? `₪${stats.sales.allTime.revenue.toFixed(0)}` : '—', color: '#ec4899' },
+              { lbl: 'רווח סה"כ', val: stats ? `₪${stats.sales.allTime.profit.toFixed(0)}` : '—', color: '#4ade80' },
               { lbl: 'פניות חדשות', val: stats?.unreadContacts ?? '—', color: stats?.unreadContacts ? '#f59e0b' : 'var(--text2)' },
             ].map(s => (
               <div key={s.lbl} style={{ padding: '16px 20px', borderLeft: '1px solid var(--border)' }}>
@@ -150,7 +179,7 @@ export default function DashboardPage() {
     );
 
     if (id === 'printer') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label)}
         {!isCollapsed && (
           <div style={{ padding: 16 }}>
@@ -212,7 +241,7 @@ export default function DashboardPage() {
     );
 
     if (id === 'orders') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label, { href: '/admin/orders', text: 'הכל' })}
         {!isCollapsed && (
           <div style={{ padding: '8px 0' }}>
@@ -236,7 +265,7 @@ export default function DashboardPage() {
     );
 
     if (id === 'stock') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label, { href: '/admin/inventory', text: 'מלאי' })}
         {!isCollapsed && (
           <div style={{ padding: '8px 0' }}>
@@ -254,7 +283,7 @@ export default function DashboardPage() {
     );
 
     if (id === 'sales') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ gridColumn: '1/-1', opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ gridColumn: '1/-1', outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label, { href: '/admin/sales', text: 'היסטוריה' })}
         {!isCollapsed && (
           <div>
@@ -295,7 +324,7 @@ export default function DashboardPage() {
     );
 
     if (id === 'contacts') return (
-      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ opacity: dragging === id ? .5 : 1 }}>
+      <div className="card" {...dragProps} style={{ outline: isDragOver ? '2px dashed var(--teal)' : 'none' }}>
         {header(meta.label, { href: '/admin/contacts', text: 'כל הפניות' })}
         {!isCollapsed && (
           <div style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
