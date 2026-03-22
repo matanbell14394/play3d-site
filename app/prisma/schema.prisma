@@ -159,11 +159,28 @@ model Product {
 
   materials     ProductMaterial[]
   orders        Order[]
+  sales         Sale[]
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
   @@index([name])
+}
+
+model Sale {
+  id          String   @id @default(cuid())
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  quantity    Int      @default(1)
+  salePrice   Float
+  costPrice   Float
+  profit      Float
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
 }
 
 model ProductMaterial {

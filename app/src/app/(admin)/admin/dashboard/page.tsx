@@ -8,6 +8,11 @@ interface DashStats {
   totalUsers: number; inventoryItems: number; unreadContacts: number;
   lowStock: { id: string; name: string; quantity: number; unit: string }[];
   recentOrders: { id: string; clientName: string; status: string; totalPrice: number | null; createdAt: string }[];
+  sales: {
+    allTime: { revenue: number; profit: number; count: number };
+    thisMonth: { revenue: number; profit: number; count: number };
+    recent: { id: string; productName: string; quantity: number; salePrice: number; profit: number; createdAt: string }[];
+  };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,10 +24,11 @@ const STATUS_HE: Record<string, string> = {
   READY_FOR_PICKUP: 'מוכן', DELIVERED: 'נמסר', CANCELLED: 'בוטל',
 };
 
-type WidgetId = 'stats' | 'printer' | 'orders' | 'stock' | 'contacts';
+type WidgetId = 'stats' | 'printer' | 'orders' | 'stock' | 'contacts' | 'sales';
 
 const DEFAULT_WIDGETS: { id: WidgetId; label: string }[] = [
   { id: 'stats',    label: 'סטטיסטיקות' },
+  { id: 'sales',    label: 'מכירות' },
   { id: 'printer',  label: 'מצב מדפסת' },
   { id: 'orders',   label: 'הזמנות אחרונות' },
   { id: 'stock',    label: 'מלאי נמוך' },
@@ -242,6 +248,47 @@ export default function DashboardPage() {
                 <span style={{ fontSize: 13, color: item.quantity < 100 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>{item.quantity}{item.unit}</span>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+    );
+
+    if (id === 'sales') return (
+      <div className="card" draggable={editMode} onDragStart={() => onDragStart(id)} onDragOver={e => onDragOver(e, id)} onDragEnd={onDragEnd} style={{ gridColumn: '1/-1', opacity: dragging === id ? .5 : 1 }}>
+        {header(meta.label, { href: '/admin/sales', text: 'היסטוריה' })}
+        {!isCollapsed && (
+          <div>
+            {/* Summary row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1 }}>
+              {[
+                { lbl: 'הכנסות החודש', val: stats ? `₪${stats.sales.thisMonth.revenue.toFixed(0)}` : '—', color: 'var(--teal)' },
+                { lbl: 'רווח החודש', val: stats ? `₪${stats.sales.thisMonth.profit.toFixed(0)}` : '—', color: '#4ade80' },
+                { lbl: 'מכירות סה"כ', val: stats ? `₪${stats.sales.allTime.revenue.toFixed(0)}` : '—', color: 'var(--text1)' },
+                { lbl: 'יחידות (כל הזמן)', val: stats?.sales.allTime.count ?? '—', color: 'var(--text2)' },
+              ].map(s => (
+                <div key={s.lbl} style={{ padding: '14px 18px', borderLeft: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{s.lbl}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+            {/* Recent sales */}
+            <div style={{ padding: '6px 0' }}>
+              {!stats?.sales.recent?.length ? (
+                <div style={{ padding: '14px 18px', color: 'var(--text3)', fontSize: 13 }}>אין מכירות עדיין</div>
+              ) : stats.sales.recent.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{s.productName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>{new Date(s.createdAt).toLocaleDateString('he-IL')} · {s.quantity} יח&apos;</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: 'var(--teal)' }}>₪{s.salePrice.toFixed(0)}</span>
+                    <span style={{ fontSize: 12, color: '#4ade80' }}>+₪{s.profit.toFixed(0)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

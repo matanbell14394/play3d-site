@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { label: 'ניהול', items: [
     { href: '/admin/orders', icon: '◎', label: 'הזמנות' },
     { href: '/admin/products', icon: '⬡', label: 'מוצרים' },
+    { href: '/admin/sales', icon: '💰', label: 'מכירות' },
     { href: '/admin/inventory', icon: '⊞', label: 'מלאי' },
     { href: '/admin/users', icon: '👥', label: 'משתמשים' },
   ]},

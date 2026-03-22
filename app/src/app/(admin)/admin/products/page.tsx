@@ -36,6 +36,13 @@ export default function ProductsPage() {
   const [form, setForm] = useState(emptyForm);
   const [materials, setMaterials] = useState<MaterialLine[]>([{ inventoryItemId: '', amountUsed: '' }]);
 
+  // Sell modal
+  const [sellProduct, setSellProduct] = useState<Product | null>(null);
+  const [sellQty, setSellQty] = useState('1');
+  const [sellPrice, setSellPrice] = useState('');
+  const [sellNote, setSellNote] = useState('');
+  const [sellSaving, setSellSaving] = useState(false);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [p, i] = await Promise.all([
@@ -107,6 +114,35 @@ export default function ProductsPage() {
     fetchAll();
   };
 
+  const openSell = (p: Product) => {
+    const { price } = calcCost(p, inventory);
+    setSellProduct(p);
+    setSellQty('1');
+    setSellPrice(price.toFixed(2));
+    setSellNote('');
+  };
+
+  const handleSell = async () => {
+    if (!sellProduct) return;
+    setSellSaving(true);
+    const qty = parseInt(sellQty) || 1;
+    const { totalCost } = calcCost(sellProduct, inventory);
+    await fetch('/api/sales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: sellProduct.id,
+        quantity: qty,
+        salePrice: parseFloat(sellPrice) || 0,
+        costPrice: parseFloat((totalCost * qty).toFixed(2)),
+        note: sellNote,
+      }),
+    });
+    setSellSaving(false);
+    setSellProduct(null);
+    fetchAll();
+  };
+
   const preview = calcPreview();
 
   return (
@@ -120,14 +156,14 @@ export default function ProductsPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
         {/* Table */}
-        <div className="card">
-          <table className="tbl">
+        <div className="card" style={{ overflowX: 'auto' }}>
+          <table className="tbl" style={{ minWidth: 520 }}>
             <thead>
               <tr>
                 <th>מוצר</th>
-                <th>זמנים (מכונה/אדם)</th>
+                <th>זמנים</th>
                 <th>עלות</th>
-                <th>מחיר מומלץ</th>
+                <th>מחיר</th>
                 <th>פעולות</th>
               </tr>
             </thead>
@@ -142,16 +178,22 @@ export default function ProductsPage() {
                   <tr key={p.id} style={{ background: editingId === p.id ? 'rgba(0,229,204,.05)' : undefined }}>
                     <td><strong>{p.name}</strong><br /><span style={{ color: 'var(--text3)', fontSize: 11 }}>אצווה: {p.batchQuantity}</span></td>
                     <td>
-                      <span style={{ color: 'var(--teal)', fontSize: 12 }}>מכונה: {p.printHours}ש&apos;</span><br />
-                      <span style={{ color: 'var(--text2)', fontSize: 12 }}>מפעיל: {p.operatorHours}ש&apos;</span>
+                      <span style={{ color: 'var(--teal)', fontSize: 12 }}>🖨 {p.printHours}ש&apos;</span><br />
+                      <span style={{ color: 'var(--text2)', fontSize: 12 }}>👤 {p.operatorHours}ש&apos;</span>
                     </td>
                     <td style={{ color: 'var(--text2)' }}>₪{totalCost.toFixed(1)}</td>
                     <td style={{ color: 'var(--teal)', fontWeight: 700 }}>₪{price.toFixed(1)}</td>
-                    <td style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-t btn-sm" onClick={() => editingId === p.id ? cancelEdit() : startEdit(p)}>
-                        {editingId === p.id ? 'ביטול' : '✏️'}
-                      </button>
-                      <button className="btn btn-d btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>
+                    <td>
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button className="btn btn-sm" onClick={() => openSell(p)}
+                          style={{ background: 'rgba(74,222,128,.12)', border: '1px solid #4ade80', color: '#4ade80', fontSize: 13 }}>
+                          💰
+                        </button>
+                        <button className="btn btn-t btn-sm" onClick={() => editingId === p.id ? cancelEdit() : startEdit(p)}>
+                          {editingId === p.id ? 'ביטול' : '✏️'}
+                        </button>
+                        <button className="btn btn-d btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -228,6 +270,54 @@ export default function ProductsPage() {
           </div>
         </form>
       </div>
+
+      {/* Sell Modal */}
+      {sellProduct && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setSellProduct(null)}>
+          <div className="card" style={{ width: 340, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <div className="ch" style={{ marginBottom: 16 }}>
+              <div className="ct">💰 רשום מכירה</div>
+              <button onClick={() => setSellProduct(null)} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ color: 'var(--teal)', fontWeight: 600, marginBottom: 16 }}>{sellProduct.name}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>כמות שנמכרה</label>
+                <input className="inp" type="number" min="1" value={sellQty} onChange={e => {
+                  setSellQty(e.target.value);
+                  const qty = parseInt(e.target.value) || 1;
+                  const { price } = calcCost(sellProduct, inventory);
+                  setSellPrice((price * qty).toFixed(2));
+                }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>מחיר מכירה (₪)</label>
+                <input className="inp" type="number" min="0" step="0.1" value={sellPrice} onChange={e => setSellPrice(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>הערה (אופציונלי)</label>
+                <input className="inp" placeholder="לקוח, ערוץ מכירה..." value={sellNote} onChange={e => setSellNote(e.target.value)} />
+              </div>
+              <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: 10, fontSize: 13 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text2)' }}>עלות:</span>
+                  <span>₪{(calcCost(sellProduct, inventory).totalCost * (parseInt(sellQty) || 1)).toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                  <span style={{ color: 'var(--text2)' }}>רווח צפוי:</span>
+                  <span style={{ color: '#4ade80' }}>
+                    ₪{(parseFloat(sellPrice || '0') - calcCost(sellProduct, inventory).totalCost * (parseInt(sellQty) || 1)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <button className="btn btn-t" onClick={handleSell} disabled={sellSaving} style={{ width: '100%', background: 'rgba(74,222,128,.15)', border: '1px solid #4ade80', color: '#4ade80' }}>
+                {sellSaving ? 'שומר...' : '✔ אשר מכירה'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
