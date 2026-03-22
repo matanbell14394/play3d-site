@@ -116,7 +116,7 @@ export default function HomePage() {
       <SiteNav active="home" />
 
       {/* HERO */}
-      <section className="hero">
+      <section id="main-content" className="hero">
         <div className="orb orb1" />
         <div className="orb orb2" />
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>

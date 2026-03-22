@@ -1003,6 +1003,64 @@ a { text-decoration: none; color: inherit; }
   .tbl { min-width: 500px; }
 }
 
+/* =============================================
+   SKIP TO CONTENT
+   ============================================= */
+.skip-link {
+  position: absolute;
+  top: -60px;
+  right: 16px;
+  background: var(--teal);
+  color: #000;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 0 0 8px 8px;
+  z-index: 99999;
+  transition: top .2s;
+  text-decoration: none;
+  font-size: 14px;
+}
+.skip-link:focus { top: 0; }
+
+/* =============================================
+   ACCESSIBILITY FEATURES
+   ============================================= */
+html.a11y-big-text { font-size: 120% !important; }
+html.a11y-big-text * { font-size: inherit; }
+
+html.a11y-high-contrast {
+  --bg: #000 !important;
+  --bg2: #000 !important;
+  --bg3: #111 !important;
+  --text: #fff !important;
+  --text2: #fff !important;
+  --card-bg: #111 !important;
+  --teal: #0ff !important;
+  --pink: #f0f !important;
+  --border: #fff !important;
+}
+html.a11y-high-contrast * { border-color: #fff !important; }
+
+html.a11y-highlight-links a {
+  outline: 2px solid var(--teal) !important;
+  outline-offset: 2px !important;
+  text-decoration: underline !important;
+}
+
+html.a11y-readable-font,
+html.a11y-readable-font * {
+  font-family: Arial, Helvetica, sans-serif !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1.7 !important;
+}
+
+html.a11y-stop-animations *,
+html.a11y-stop-animations *::before,
+html.a11y-stop-animations *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Very small screens */
 @media (max-width: 380px) {
   .nl.special, .nl.cta { font-size: 10px; padding: 5px 8px; }

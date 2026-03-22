@@ -4,6 +4,8 @@ import "@/styles/globals.css";
 import { ThemeProvider } from "./theme-provider";
 import { Providers } from "./providers";
 import LiveVisitors from "@/components/LiveVisitors";
+import CookieConsent from "@/components/CookieConsent";
+import AccessibilityWidget from "@/components/AccessibilityWidget";
 
 const orbitron = Orbitron({
   variable: "--font-orbitron",
@@ -30,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className={`${orbitron.variable} ${notoSansHebrew.variable}`} style={{ fontSize: '17px' }}>
+        <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
         <ThemeProvider
           attribute="data-theme"
           defaultTheme="dark"
@@ -38,6 +41,8 @@ export default function RootLayout({
           <Providers>
             {children}
             <LiveVisitors />
+            <AccessibilityWidget />
+            <CookieConsent />
           </Providers>
         </ThemeProvider>
       </body>
