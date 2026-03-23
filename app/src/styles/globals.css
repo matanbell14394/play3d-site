@@ -159,8 +159,8 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: space-between;
   padding: 0 5%;
-  background: rgba(5,7,15,0.55);
-  backdrop-filter: blur(28px) saturate(200%);
+  background: rgba(5,7,15,0.88);
+  backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   border-bottom: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 1px 0 rgba(0,238,221,0.06), 0 4px 24px rgba(0,0,0,0.4);
@@ -321,7 +321,7 @@ a { text-decoration: none; color: inherit; }
 .orb1 {
   width: 500px; height: 500px;
   background: radial-gradient(circle, rgba(0,229,204,.14), transparent 70%);
-  top: -100px; right: -100px;
+  top: 60px; right: -100px;
   animation: fl1 9s ease-in-out infinite;
 }
 .orb2 {
