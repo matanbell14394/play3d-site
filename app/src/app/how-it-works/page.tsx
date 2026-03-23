@@ -1,5 +1,6 @@
 import SiteNav from '@/components/SiteNav';
 import Link from 'next/link';
+// Link used in CTA section
 
 const STEPS = [
   {
@@ -29,12 +30,6 @@ const STEPS = [
   },
 ];
 
-const MATERIALS_QUICK = [
-  { name: 'PLA', color: '#00e5cc', use: 'מודלים, עיצוב, אבות טיפוס' },
-  { name: 'PETG', color: '#3b82f6', use: 'חלקים פונקציונליים, מכלים' },
-  { name: 'ABS', color: '#f59e0b', use: 'עמיד בחום, תעשייה' },
-  { name: 'TPU', color: '#ec4899', use: 'גמיש, גריפ, כיסויים' },
-];
 
 export default function HowItWorksPage() {
   return (
@@ -83,24 +78,6 @@ export default function HowItWorksPage() {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Materials quick */}
-        <div style={{ background: 'var(--bg2)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '48px 24px' }}>
-          <div style={{ maxWidth: 860, margin: '0 auto' }}>
-            <h2 style={{ textAlign: 'center', fontSize: 20, fontWeight: 700, marginBottom: 32 }}>חומרים נפוצים</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-              {MATERIALS_QUICK.map(m => (
-                <div key={m.name} style={{ background: 'var(--card-bg)', border: `1px solid ${m.color}40`, borderRadius: 12, padding: '20px 16px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 20, fontWeight: 700, color: m.color, marginBottom: 8 }}>{m.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>{m.use}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ textAlign: 'center', marginTop: 24 }}>
-              <Link href="/materials" className="btn btn-t">מידע מלא על החומרים ←</Link>
-            </div>
-          </div>
         </div>
 
         {/* CTA */}
