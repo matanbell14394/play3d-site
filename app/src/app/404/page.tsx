@@ -202,16 +202,17 @@ export default function Game404() {
 
       if (s.invTimer === 0) {
         for (const b of s.eBullets) {
-          if (Math.abs(b.x - s.px) < 16 && Math.abs(b.y - s.py) < 16) {
+          if (s.invTimer > 0) break; // prevent multi-hit in same frame
+          if (Math.abs(b.x - s.px) < 12 && Math.abs(b.y - s.py) < 12) {
             b.y = CH + 999; s.lives--; setLives(s.lives);
-            s.invTimer = 130; s.shake = 10;
+            s.invTimer = 150; s.shake = 10;
             spawnParticles(s.px, s.py, TEAL, 20);
             if (s.lives <= 0) { setHi(h => Math.max(h, s.score)); setPhase('gameover'); }
           }
         }
       }
 
-      if (alive.some(e => e.y > CH - 80)) { setHi(h => Math.max(h, s.score)); setPhase('gameover'); }
+      if (alive.some(e => e.y > CH - 30)) { setHi(h => Math.max(h, s.score)); setPhase('gameover'); }
       if (alive.length === 0) { setHi(h => Math.max(h, s.score)); setPhase('win'); }
 
       s.particles = s.particles.filter(p => p.life > 0);
