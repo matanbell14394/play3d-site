@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
+import AuthModal from "@/components/AuthModal";
 
 export interface GalleryItem { id: string; title: string; description: string | null; imageUrl: string | null; images: string; }
 
@@ -43,17 +46,20 @@ function ContactForm() {
 }
 
 interface PrinterStatus { status: string; taskName: string | null; progress: number; modelImageUrl: string | null; modelTitle: string | null; updatedAt: string | null; }
-interface ModelEstimate { title: string; printTimeFormatted: string | null; filamentGrams: number | null; materialName: string | null; estimatedPrice: number | null; breakdown: { filamentCost: number; printCost: number }; }
 
 export default function HomeClient({ initialGallery }: { initialGallery: GalleryItem[] }) {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [showAuth, setShowAuth] = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [imgIdx, setImgIdx] = useState(0);
   const [galleryItems] = useState<GalleryItem[]>(initialGallery);
-  const [modelUrl, setModelUrl] = useState('');
-  const [estimating, setEstimating] = useState(false);
-  const [estimate, setEstimate] = useState<ModelEstimate | null>(null);
-  const [estimateError, setEstimateError] = useState('');
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus | null>(null);
+
+  const handleOrderClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (session) { router.push('/order'); } else { setShowAuth(true); }
+  };
 
   useEffect(() => {
     fetch('/api/printer-status').then(r => r.json()).then(d => { if (d?.status) setPrinterStatus(d); });
@@ -63,17 +69,6 @@ export default function HomeClient({ initialGallery }: { initialGallery: Gallery
     return () => clearInterval(interval);
   }, []);
 
-  const estimateModel = async () => {
-    if (!modelUrl.trim()) return;
-    setEstimating(true); setEstimate(null); setEstimateError('');
-    try {
-      const res = await fetch('/api/estimate-model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: modelUrl }) });
-      const data = await res.json();
-      if (!res.ok || data.error) setEstimateError(data.error || 'שגיאה בהערכה');
-      else setEstimate(data);
-    } catch { setEstimateError('שגיאת חיבור'); }
-    setEstimating(false);
-  };
 
   useEffect(() => {
     if (lightbox === null) return;
@@ -110,8 +105,8 @@ export default function HomeClient({ initialGallery }: { initialGallery: Gallery
             ממודלים ועד אבות טיפוס תעשייתיים — אנו מממשים כל רעיון בחומרים איכותיים ודיוק מרשים.
           </p>
           <div className="hero-btns">
-            <a href="#order" className="btn-hero">הזמן הדפסה עכשיו</a>
-            <a href="#gallery" className="btn-ghost">לצפות בגלריה</a>
+            <a href="#order" className="btn-hero" onClick={handleOrderClick}>הזמן הדפסה עכשיו</a>
+            <Link href="/gallery" className="btn-ghost">לצפות בגלריה</Link>
           </div>
           <div className="hero-stats">
             <div className="hst"><div className="hst-v">500+</div><div className="hst-l">פרויקטים</div></div>
@@ -244,62 +239,18 @@ export default function HomeClient({ initialGallery }: { initialGallery: Gallery
         </div>
       </section>
 
-      {/* ORDER FORM */}
-      <section className="section alt" id="order" style={{ position: 'relative' }}>
+      {/* ORDER CTA */}
+      <section className="section alt" id="order" style={{ position: 'relative', textAlign: 'center' }}>
         <div className="section-num">05</div>
-        <div style={{ textAlign: 'center', maxWidth: 560, margin: '0 auto 6px' }}>
-          <div className="sh-tag" style={{ textAlign: 'center' }}>// הזמנה</div>
-          <h2 className="sh-title" style={{ textAlign: 'center' }}>הזמן הדפסה + הצטרף</h2>
-          <div className="sh-line" style={{ margin: '10px auto 0' }} />
-        </div>
-        <div className="order-wrap">
-          <div className="form-grid">
-            <div style={{ gridColumn: '1/-1', fontSize: 10, color: 'var(--teal)', letterSpacing: 2, textTransform: 'uppercase', paddingBottom: 4, borderBottom: '1px solid rgba(0,229,204,.1)' }}>פרטי הרשמה</div>
-            <div className="fg"><label htmlFor="h-name">שם מלא *</label><input id="h-name" placeholder="ישראל ישראלי" /></div>
-            <div className="fg"><label htmlFor="h-email">אימייל *</label><input id="h-email" type="email" placeholder="your@email.com" /></div>
-            <div className="fg"><label htmlFor="h-phone">טלפון *</label><input id="h-phone" placeholder="050-0000000" /></div>
-            <div className="fg"><label htmlFor="h-city">עיר / ישוב</label><input id="h-city" placeholder="תל אביב" /></div>
-            <div style={{ gridColumn: '1/-1', fontSize: 10, color: 'var(--teal)', letterSpacing: 2, textTransform: 'uppercase', paddingBottom: 4, borderBottom: '1px solid rgba(0,229,204,.1)', marginTop: 6 }}>פרטי ההזמנה</div>
-            <div className="fg">
-              <label htmlFor="h-type">סוג הדפסה</label>
-              <select id="h-type">
-                <option value="">— בחר סוג —</option>
-                <option>FDM — PLA</option><option>FDM — PETG</option><option>FDM — ABS</option><option>FDM — TPU</option>
-                <option>לא בטוח — ייעץ לי</option>
-              </select>
-            </div>
-            <div className="fg"><label htmlFor="h-qty">כמות</label><input id="h-qty" type="number" defaultValue={1} min={1} /></div>
-            <div className="fg"><label htmlFor="h-file">קובץ STL</label><input id="h-file" type="file" accept=".stl,.obj,.3mf" style={{ padding: '8px 12px' }} /></div>
-            <div className="fg full">
-              <label>קישור מ-MakerWorld (אופציונלי)</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="https://makerworld.com/en/models/..." value={modelUrl} onChange={e => { setModelUrl(e.target.value); setEstimate(null); setEstimateError(''); }} style={{ flex: 1 }} />
-                <button type="button" onClick={estimateModel} disabled={estimating || !modelUrl.trim()} style={{ padding: '0 16px', borderRadius: 8, border: '1px solid var(--teal)', background: 'var(--teal3)', color: 'var(--teal)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: estimating ? .6 : 1 }}>
-                  {estimating ? '...' : 'הערך מחיר'}
-                </button>
-              </div>
-              {estimateError && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}>{estimateError}</div>}
-              {estimate && (
-                <div style={{ marginTop: 10, background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 10, padding: '12px 14px' }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--teal)', marginBottom: 6 }}>📦 {estimate.title}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-                    {estimate.printTimeFormatted && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>זמן הדפסה</div><div style={{ color: 'var(--text1)' }}>{estimate.printTimeFormatted}</div></div>}
-                    {estimate.filamentGrams && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>חומר</div><div style={{ color: 'var(--text1)' }}>{estimate.filamentGrams}g</div></div>}
-                    {estimate.materialName && <div style={{ fontSize: 12 }}><div style={{ color: 'var(--text3)', fontSize: 10, marginBottom: 2 }}>סוג</div><div style={{ color: 'var(--text1)' }}>{estimate.materialName}</div></div>}
-                  </div>
-                  {estimate.estimatedPrice && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>הערכת מחיר (כולל חומר + הפעלה)</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--teal)' }}>₪{estimate.estimatedPrice}</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="fg full"><label>תיאור הפרויקט</label><textarea placeholder="גודל, צבע, שימוש, רמת פינוי..." /></div>
-            <Link href="/order" className="submit-btn-big" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>🚀 שלח הזמנה + הצטרף</Link>
-          </div>
-        </div>
+        <div className="sh-tag" style={{ display: 'inline-block', marginBottom: 12 }}>// הזמנה</div>
+        <h2 className="sh-title">מוכן להדפיס?</h2>
+        <div className="sh-line" style={{ margin: '12px auto 20px' }} />
+        <p style={{ color: 'var(--text2)', fontSize: 15, maxWidth: 480, margin: '0 auto 32px', lineHeight: 1.8 }}>
+          הגש הזמנה בקלות דרך האזור האישי — בחר חומר, העלה קובץ וקבל הצעת מחיר תוך 24 שעות.
+        </p>
+        <button onClick={handleOrderClick} className="btn-hero" style={{ fontSize: 16, padding: '14px 36px' }}>
+          🚀 הזמן הדפסה עכשיו
+        </button>
       </section>
 
       {/* CONTACT */}
@@ -346,6 +297,9 @@ export default function HomeClient({ initialGallery }: { initialGallery: Gallery
           </span>
         </div>
       </footer>
+
+      {/* AUTH MODAL */}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} redirectTo="/order" />}
 
       {/* LIGHTBOX */}
       {lightbox !== null && galleryItems[lightbox] && (() => {

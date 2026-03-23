@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import SiteNav from '@/components/SiteNav';
 import Link from 'next/link';
 
@@ -13,6 +15,17 @@ interface FormData {
 const PRINT_TYPES = ['FDM — PLA', 'FDM — PETG', 'FDM — ABS', 'FDM — TPU', 'FDM — ASA', 'לא בטוח — ייעץ לי'];
 
 export default function OrderPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/login?callbackUrl=/order');
+  }, [status, router]);
+
+  if (status === 'loading' || status === 'unauthenticated') return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' }}>טוען...</div>
+  );
+
   const [step, setStep] = useState<Step>(1);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState<FormData>({
