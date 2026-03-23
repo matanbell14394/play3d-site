@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import prisma from '@/lib/prisma/prisma';
 import HomeClient from './HomeClient';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'PLAY3D | הדפסות תלת מימד מקצועיות',
   description: 'שירות הדפסות תלת מימד מקצועי בטבעון. FDM — PLA, PETG, ABS, TPU. מעל 500 פרויקטים מוצלחים. הזמינו עכשיו!',
