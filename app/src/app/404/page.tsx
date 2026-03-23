@@ -3,474 +3,329 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import SiteNav from '@/components/SiteNav';
 
-const CW = 660;
-const CH = 280;
-const HIT_R = 22;
-const GAME_TIME = 35;
-const TEAL = '#00e5cc';
-const PINK = '#ff2d78';
+const CW = 480, CH = 620;
+const TEAL = '#00e5cc', PINK = '#ff2d78', GOLD = '#ffd700';
+const COLS = 9, ROWS = 4;
+const EW = 32, EH = 24, EGX = 16, EGY = 20;
+const GRID_W = COLS * (EW + EGX) - EGX;
+const GSX = (CW - GRID_W) / 2;
+const GSY = 60;
+const PLAYER_SPEED = 4.5;
+const P_BULLET_SPEED = 10;
+const E_BULLET_SPEED = 3.2;
+const SHOOT_CD = 16;
 
-type Pt = { x: number; y: number };
-type Stroke = Pt[];
+const ROW = [
+  { pts: 40, color: PINK },
+  { pts: 30, color: '#ff7c1f' },
+  { pts: 20, color: TEAL },
+  { pts: 10, color: '#7b69ee' },
+];
 
-function lerp(a: Pt, b: Pt, n: number): Pt[] {
-  return Array.from({ length: n + 1 }, (_, i) => ({
-    x: a.x + (b.x - a.x) * (i / n),
-    y: a.y + (b.y - a.y) * (i / n),
-  }));
-}
+type Bullet = { x: number; y: number; dy: number };
+type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string; r: number };
+type Star = { x: number; y: number; speed: number; size: number };
+type Enemy = { alive: boolean; x: number; y: number; row: number; flash: number };
+type Shield = { x: number; y: number; hp: number };
+type Phase = 'intro' | 'playing' | 'win' | 'gameover';
 
-function ovalPts(cx: number, cy: number, rx: number, ry: number, n: number): Pt[] {
-  return Array.from({ length: n + 1 }, (_, i) => {
-    const a = (2 * Math.PI * i) / n;
-    return { x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) };
-  });
-}
-
-function build404(): { strokes: Stroke[]; wpts: Pt[] } {
-  const T = 36, B = CH - 36;
-  const MID = (T + B) / 2 + 12;
-  const dw = (CW - 80) / 3;
-  const lx = 28;
-  const strokes: Stroke[] = [];
-
-  // "4" left
-  const s0x = lx + dw * 0.68;
-  strokes.push(lerp({ x: s0x, y: T }, { x: lx + 6, y: MID }, 20));
-  strokes.push(lerp({ x: lx + 6, y: MID }, { x: lx + dw * 0.92, y: MID }, 14));
-  strokes.push(lerp({ x: s0x, y: T }, { x: s0x, y: B }, 24));
-
-  // "0"
-  const cx = lx + dw * 1.5, cy = (T + B) / 2;
-  strokes.push(ovalPts(cx, cy, dw * 0.43, (B - T) / 2 * 0.91, 44));
-
-  // "4" right
-  const rx2 = lx + dw * 2;
-  const s2x = rx2 + dw * 0.68;
-  strokes.push(lerp({ x: s2x, y: T }, { x: rx2 + 6, y: MID }, 20));
-  strokes.push(lerp({ x: rx2 + 6, y: MID }, { x: rx2 + dw * 0.92, y: MID }, 14));
-  strokes.push(lerp({ x: s2x, y: T }, { x: s2x, y: B }, 24));
-
-  return { strokes, wpts: strokes.flat() };
-}
-
-type Particle = { x: number; y: number; vx: number; vy: number; life: number };
-
-function drawNozzle(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  // Carriage body
-  ctx.fillStyle = '#1e2a4a';
-  ctx.strokeStyle = 'rgba(0,229,204,0.5)';
-  ctx.lineWidth = 1;
-  const bx = x - 12, by = y - 36, bw = 24, bh = 20;
+function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, blink: boolean) {
+  if (blink) return;
+  ctx.save(); ctx.translate(x, y);
+  const eg = ctx.createRadialGradient(0, 12, 0, 0, 12, 22);
+  eg.addColorStop(0, 'rgba(0,229,204,.55)'); eg.addColorStop(1, 'rgba(0,229,204,0)');
+  ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(0, 12, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a2540'; ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(bx + 4, by);
-  ctx.lineTo(bx + bw - 4, by);
-  ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + 4);
-  ctx.lineTo(bx + bw, by + bh - 4);
-  ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - 4, by + bh);
-  ctx.lineTo(bx + 4, by + bh);
-  ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - 4);
-  ctx.lineTo(bx, by + 4);
-  ctx.quadraticCurveTo(bx, by, bx + 4, by);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.moveTo(0, -18); ctx.lineTo(-18, 10); ctx.lineTo(-10, 16); ctx.lineTo(10, 16); ctx.lineTo(18, 10);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#aab4d4';
+  ctx.beginPath(); ctx.rect(-5, -6, 10, 10); ctx.fill();
+  ctx.fillStyle = TEAL;
+  ctx.beginPath(); ctx.arc(0, -18, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,229,204,.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-16, 8); ctx.lineTo(-9, -5); ctx.moveTo(16, 8); ctx.lineTo(9, -5); ctx.stroke();
+  ctx.restore();
+}
 
-  // Vent lines on body
-  ctx.strokeStyle = 'rgba(0,229,204,0.3)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 3; i++) {
-    const lx2 = bx + 5 + i * 7;
+function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, row: number, t: number) {
+  const { color } = ROW[row];
+  ctx.save(); ctx.translate(x, y);
+  const pulse = 0.88 + 0.12 * Math.sin(t * 2.5 + row * 1.3);
+  ctx.scale(pulse, pulse);
+  ctx.strokeStyle = color; ctx.fillStyle = color + '28'; ctx.lineWidth = 1.5;
+  if (row === 0) {
     ctx.beginPath();
-    ctx.moveTo(lx2, by + 5);
-    ctx.lineTo(lx2, by + bh - 5);
-    ctx.stroke();
+    ctx.moveTo(0, -12); ctx.lineTo(-9, -3); ctx.lineTo(-13, 5);
+    ctx.lineTo(-6, 11); ctx.lineTo(6, 11); ctx.lineTo(13, 5);
+    ctx.lineTo(9, -3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 1, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-5, -12); ctx.lineTo(-9, -18); ctx.moveTo(5, -12); ctx.lineTo(9, -18); ctx.stroke();
+  } else if (row === 1) {
+    ctx.beginPath(); ctx.moveTo(-7, -5); ctx.lineTo(0, -14); ctx.lineTo(7, -5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.rect(-7, -5, 14, 14); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 9, 7, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  } else if (row === 2) {
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, 12, 5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, 12); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.rect(-9, -4, 18, 15); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-9, -4); ctx.lineTo(-4, -11); ctx.lineTo(13, -11); ctx.lineTo(9, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(9, -4); ctx.lineTo(13, -11); ctx.lineTo(13, 5); ctx.lineTo(9, 11); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawShield(ctx: CanvasRenderingContext2D, x: number, y: number, hp: number) {
+  if (hp <= 0) return;
+  const a = hp / 3;
+  ctx.fillStyle = `rgba(0,229,204,${a * 0.2})`; ctx.strokeStyle = `rgba(0,229,204,${a * 0.65})`; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 28, y + 16); ctx.lineTo(x - 28, y - 8);
+  ctx.quadraticCurveTo(x - 28, y - 20, x, y - 20);
+  ctx.quadraticCurveTo(x + 28, y - 20, x + 28, y - 8);
+  ctx.lineTo(x + 28, y + 16); ctx.lineTo(x + 18, y + 16);
+  ctx.lineTo(x + 14, y + 8); ctx.lineTo(x - 14, y + 8); ctx.lineTo(x - 18, y + 16);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+
+function makeState() {
+  const enemies: Enemy[] = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      enemies.push({ alive: true, x: GSX + c * (EW + EGX) + EW / 2, y: GSY + r * (EH + EGY) + EH / 2, row: r, flash: 0 });
+  const shields: Shield[] = [CW * 0.2, CW * 0.5, CW * 0.8].map(x => ({ x, y: CH - 110, hp: 3 }));
+  const stars: Star[] = Array.from({ length: 90 }, () => ({ x: Math.random() * CW, y: Math.random() * CH, speed: Math.random() * 0.5 + 0.15, size: Math.random() > 0.85 ? 2 : 1 }));
+  return { px: CW / 2, py: CH - 48, bullets: [] as Bullet[], eBullets: [] as Bullet[], enemies, shields, particles: [] as Particle[], stars, gridDX: 0.55, shootCD: 0, eShootTimer: 70, score: 0, lives: 3, shake: 0, t: 0, invTimer: 0 };
+}
+
+export default function Game404() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [hi, setHi] = useState(0);
+  const gs = useRef(makeState());
+  const keys = useRef(new Set<string>());
+  const raf = useRef(0);
+
+  function spawnParticles(x: number, y: number, color: string, n: number) {
+    const s = gs.current;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = Math.random() * 3.5 + 0.8;
+      s.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, color, r: Math.random() * 3 + 1 });
+    }
   }
 
-  // Heater block
-  ctx.fillStyle = '#2d3a5e';
-  ctx.strokeStyle = 'rgba(255,45,120,0.5)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.rect(x - 7, y - 16, 14, 10);
-  ctx.fill();
-  ctx.stroke();
+  const start = useCallback(() => { gs.current = makeState(); setScore(0); setLives(3); setPhase('playing'); }, []);
 
-  // Nozzle taper
-  ctx.fillStyle = '#c0c8e0';
-  ctx.beginPath();
-  ctx.moveTo(x - 6, y - 6);
-  ctx.lineTo(x + 6, y - 6);
-  ctx.lineTo(x + 2, y);
-  ctx.lineTo(x - 2, y);
-  ctx.closePath();
-  ctx.fill();
-
-  // Tip glow
-  const grd = ctx.createRadialGradient(x, y + 1, 0, x, y + 1, 16);
-  grd.addColorStop(0, 'rgba(0,229,204,0.85)');
-  grd.addColorStop(0.4, 'rgba(0,229,204,0.3)');
-  grd.addColorStop(1, 'rgba(0,229,204,0)');
-  ctx.fillStyle = grd;
-  ctx.beginPath();
-  ctx.arc(x, y + 1, 16, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Tip dot
-  ctx.fillStyle = TEAL;
-  ctx.beginPath();
-  ctx.arc(x, y + 1, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function getLabel(score: number) {
-  if (score >= 95) return { icon: '🏆', title: 'הדפסה מושלמת!', msg: 'מדהים! יש לך יד יציבה של הנדסאי.' };
-  if (score >= 80) return { icon: '🌟', title: 'הדפסה מעולה', msg: 'כישרון אמיתי! עוד קצת ואתה מומחה.' };
-  if (score >= 60) return { icon: '👍', title: 'הדפסה טובה', msg: 'עבודה יפה! הדיוק שלך מרשים.' };
-  if (score >= 35) return { icon: '🖨️', title: 'הדפסה בסיסית', msg: 'לא רע! נסה שוב לשפר את הדיוק.' };
-  return { icon: '🔄', title: 'הדפסה כושלת', msg: 'ניסיון ראשון? נסה שוב — זה קל יותר!' };
-}
-
-export default function NotFound() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<'intro' | 'playing' | 'done'>('intro');
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(GAME_TIME);
-  const [isOnCanvas, setIsOnCanvas] = useState(false);
-
-  const pathRef = useRef<{ strokes: Stroke[]; wpts: Pt[] }>({ strokes: [], wpts: [] });
-  const hitsRef = useRef<boolean[]>([]);
-  const drawnRef = useRef<Pt[]>([]);
-  const nozzleRef = useRef<Pt>({ x: CW / 2, y: CH / 2 });
-  const particlesRef = useRef<Particle[]>([]);
-  const rafRef = useRef<number>(0);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
-
-  const getPos = useCallback((clientX: number, clientY: number): Pt => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (clientX - rect.left) * (CW / rect.width),
-      y: (clientY - rect.top) * (CH / rect.height),
-    };
-  }, []);
-
-  const onMove = useCallback((clientX: number, clientY: number) => {
-    if (phaseRef.current !== 'playing') return;
-    const pos = getPos(clientX, clientY);
-    nozzleRef.current = pos;
-
-    drawnRef.current.push(pos);
-    if (drawnRef.current.length > 800) drawnRef.current.splice(0, 200);
-
-    // Filament drop particles
-    for (let i = 0; i < 3; i++) {
-      particlesRef.current.push({
-        x: pos.x + (Math.random() - 0.5) * 3,
-        y: pos.y + 1,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: Math.random() * 1.8 + 0.4,
-        life: 1,
-      });
-    }
-    if (particlesRef.current.length > 120) particlesRef.current.splice(0, 40);
-
-    // Hit detection
-    const { wpts } = pathRef.current;
-    const hits = hitsRef.current;
-    wpts.forEach((p, i) => {
-      if (!hits[i]) {
-        const dx = pos.x - p.x, dy = pos.y - p.y;
-        if (dx * dx + dy * dy <= HIT_R * HIT_R) hits[i] = true;
-      }
-    });
-    const hitCount = hits.filter(Boolean).length;
-    setScore(Math.round((hitCount / wpts.length) * 100));
-  }, [getPos]);
-
-  // Render loop
   useEffect(() => {
     if (phase !== 'playing') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     let running = true;
-    let last = performance.now();
 
-    function frame(now: number) {
+    function frame() {
       if (!running) return;
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-      ctx.clearRect(0, 0, CW, CH);
+      const s = gs.current;
+      s.t += 0.016;
 
-      const { strokes, wpts } = pathRef.current;
-      const hits = hitsRef.current;
-      const drawn = drawnRef.current;
-      const nozzle = nozzleRef.current;
-      const particles = particlesRef.current;
+      if (keys.current.has('ArrowLeft') || keys.current.has('a')) s.px = Math.max(20, s.px - PLAYER_SPEED);
+      if (keys.current.has('ArrowRight') || keys.current.has('d')) s.px = Math.min(CW - 20, s.px + PLAYER_SPEED);
+      if (s.shootCD > 0) s.shootCD--;
+      if ((keys.current.has(' ') || keys.current.has('ArrowUp') || keys.current.has('w')) && s.shootCD === 0) {
+        s.bullets.push({ x: s.px, y: s.py - 20, dy: -P_BULLET_SPEED });
+        s.shootCD = SHOOT_CD;
+      }
+      if (s.invTimer > 0) s.invTimer--;
 
-      // Grid lines (subtle)
-      ctx.strokeStyle = 'rgba(0,229,204,0.04)';
-      ctx.lineWidth = 1;
-      for (let gx = 0; gx < CW; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, CH); ctx.stroke(); }
-      for (let gy = 0; gy < CH; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(CW, gy); ctx.stroke(); }
+      s.bullets = s.bullets.filter(b => b.y > -20);
+      for (const b of s.bullets) b.y += b.dy;
+      s.eBullets = s.eBullets.filter(b => b.y < CH + 20);
+      for (const b of s.eBullets) b.y += b.dy;
 
-      // Target strokes — ghost dashed
-      ctx.setLineDash([10, 8]);
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      strokes.forEach(stroke => {
-        ctx.beginPath();
-        stroke.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-        ctx.strokeStyle = 'rgba(0,229,204,0.2)';
-        ctx.stroke();
-      });
-      ctx.setLineDash([]);
+      const alive = s.enemies.filter(e => e.alive);
+      const speed = s.gridDX * (1 + (ROWS * COLS - alive.length) / (ROWS * COLS) * 2.8);
+      for (const e of alive) e.x += speed;
+      const lx = Math.min(...alive.map(e => e.x)) - EW / 2;
+      const rx = Math.max(...alive.map(e => e.x)) + EW / 2;
+      if ((rx >= CW - 10 && s.gridDX > 0) || (lx <= 10 && s.gridDX < 0)) {
+        s.gridDX *= -1;
+        for (const e of alive) e.y += 22;
+      }
+      for (const e of s.enemies) if (e.flash > 0) e.flash--;
 
-      // Covered waypoints glow
-      wpts.forEach((p, i) => {
-        if (!hits[i]) return;
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 5);
-        grd.addColorStop(0, 'rgba(0,229,204,0.9)');
-        grd.addColorStop(1, 'rgba(0,229,204,0)');
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // User's drawn line
-      if (drawn.length > 1) {
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(0,229,204,0.15)';
-        ctx.lineWidth = 14;
-        ctx.beginPath();
-        drawn.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(0,229,204,0.8)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        drawn.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-        ctx.stroke();
+      if (--s.eShootTimer <= 0 && alive.length > 0) {
+        const sh = alive[Math.floor(Math.random() * alive.length)];
+        s.eBullets.push({ x: sh.x, y: sh.y + EH / 2, dy: E_BULLET_SPEED });
+        s.eShootTimer = Math.max(18, 75 - (ROWS * COLS - alive.length) * 1.8);
       }
 
-      // Particles (filament drops)
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.1;
-        p.life -= dt * 2.5;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
-        ctx.fillStyle = `rgba(0,229,204,${p.life * 0.75})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2.5 * p.life, 0, Math.PI * 2);
-        ctx.fill();
+      for (const b of s.bullets) {
+        for (const e of s.enemies) {
+          if (!e.alive) continue;
+          if (Math.abs(b.x - e.x) < EW / 2 + 3 && Math.abs(b.y - e.y) < EH / 2 + 3) {
+            e.alive = false; b.y = -999;
+            s.score += ROW[e.row].pts; setScore(s.score);
+            spawnParticles(e.x, e.y, ROW[e.row].color, 14); s.shake = 5;
+          }
+        }
       }
 
-      // Nozzle
-      drawNozzle(ctx, nozzle.x, nozzle.y);
+      for (const b of [...s.bullets, ...s.eBullets]) {
+        for (const sh of s.shields) {
+          if (sh.hp <= 0) continue;
+          if (Math.abs(b.x - sh.x) < 30 && b.y > sh.y - 22 && b.y < sh.y + 18) {
+            sh.hp--; b.y = b.dy < 0 ? -999 : CH + 999;
+            spawnParticles(b.x, sh.y, TEAL, 5);
+          }
+        }
+      }
 
-      rafRef.current = requestAnimationFrame(frame);
+      if (s.invTimer === 0) {
+        for (const b of s.eBullets) {
+          if (Math.abs(b.x - s.px) < 16 && Math.abs(b.y - s.py) < 16) {
+            b.y = CH + 999; s.lives--; setLives(s.lives);
+            s.invTimer = 130; s.shake = 10;
+            spawnParticles(s.px, s.py, TEAL, 20);
+            if (s.lives <= 0) { setHi(h => Math.max(h, s.score)); setPhase('gameover'); }
+          }
+        }
+      }
+
+      if (alive.some(e => e.y > CH - 80)) { setHi(h => Math.max(h, s.score)); setPhase('gameover'); }
+      if (alive.length === 0) { setHi(h => Math.max(h, s.score)); setPhase('win'); }
+
+      s.particles = s.particles.filter(p => p.life > 0);
+      for (const p of s.particles) { p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life -= 0.028; }
+      for (const st of s.stars) { st.y += st.speed; if (st.y > CH) { st.y = 0; st.x = Math.random() * CW; } }
+      if (s.shake > 0) s.shake--;
+
+      // Draw
+      ctx.save();
+      if (s.shake > 0) ctx.translate((Math.random() - .5) * 5, (Math.random() - .5) * 5);
+      ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, CW, CH);
+
+      for (const st of s.stars) {
+        ctx.fillStyle = `rgba(255,255,255,${st.size > 1 ? 0.9 : 0.4})`;
+        ctx.fillRect(st.x, st.y, st.size, st.size);
+      }
+
+      for (const sh of s.shields) drawShield(ctx, sh.x, sh.y, sh.hp);
+
+      for (const e of s.enemies) {
+        if (!e.alive) continue;
+        if (e.flash > 0) ctx.globalAlpha = e.flash % 4 < 2 ? 0.3 : 1;
+        drawEnemy(ctx, e.x, e.y, e.row, s.t);
+        ctx.globalAlpha = 1;
+      }
+
+      for (const b of s.bullets) {
+        if (b.y < -5) continue;
+        const g = ctx.createLinearGradient(b.x, b.y - 24, b.x, b.y + 10);
+        g.addColorStop(0, 'rgba(0,229,204,0)'); g.addColorStop(0.4, 'rgba(0,229,204,.9)'); g.addColorStop(1, '#fff');
+        ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(b.x, b.y - 24); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,229,204,.2)'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(b.x, b.y - 24); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+
+      for (const b of s.eBullets) {
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 7);
+        g.addColorStop(0, PINK); g.addColorStop(1, 'rgba(255,45,120,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+      for (const p of s.particles) {
+        ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      drawPlayer(ctx, s.px, s.py, s.invTimer > 0 && Math.floor(s.t * 60) % 6 < 3);
+
+      ctx.font = 'bold 13px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = TEAL;
+      ctx.fillText(`${s.score}`, 10, 20);
+      for (let i = 0; i < s.lives; i++) {
+        ctx.fillStyle = TEAL; ctx.beginPath(); ctx.arc(CW - 14 - i * 20, 14, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      raf.current = requestAnimationFrame(frame);
     }
 
-    rafRef.current = requestAnimationFrame(frame);
-    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+    raf.current = requestAnimationFrame(frame);
+    return () => { running = false; cancelAnimationFrame(raf.current); };
   }, [phase]);
 
-  // Events
   useEffect(() => {
     if (phase !== 'playing') return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const mm = (e: MouseEvent) => onMove(e.clientX, e.clientY);
-    const tm = (e: TouchEvent) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
-    canvas.addEventListener('mousemove', mm);
-    canvas.addEventListener('touchmove', tm, { passive: false });
-    return () => { canvas.removeEventListener('mousemove', mm); canvas.removeEventListener('touchmove', tm); };
-  }, [phase, onMove]);
-
-  // Timer
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    const iv = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(iv); setPhase('done'); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(iv);
+    const dn = (e: KeyboardEvent) => { keys.current.add(e.key); if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp'].includes(e.key)) e.preventDefault(); };
+    const up = (e: KeyboardEvent) => keys.current.delete(e.key);
+    window.addEventListener('keydown', dn); window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', dn); window.removeEventListener('keyup', up); };
   }, [phase]);
 
-  const startGame = () => {
-    pathRef.current = build404();
-    hitsRef.current = pathRef.current.wpts.map(() => false);
-    drawnRef.current = [];
-    particlesRef.current = [];
-    nozzleRef.current = { x: CW / 2, y: CH / 2 };
-    setScore(0);
-    setTimeLeft(GAME_TIME);
-    setPhase('playing');
-  };
+  const tLeft  = useCallback((on: boolean) => { if (on) keys.current.add('ArrowLeft');  else keys.current.delete('ArrowLeft');  }, []);
+  const tRight = useCallback((on: boolean) => { if (on) keys.current.add('ArrowRight'); else keys.current.delete('ArrowRight'); }, []);
+  const tShoot = useCallback(() => { keys.current.add(' '); setTimeout(() => keys.current.delete(' '), 80); }, []);
 
-  const { icon, title, msg } = getLabel(score);
-  const pct = Math.round((timeLeft / GAME_TIME) * 100);
+  const btn = (accent?: boolean): React.CSSProperties => ({
+    width: 64, height: 64, borderRadius: 12,
+    border: `1px solid ${accent ? TEAL : 'var(--border)'}`,
+    background: accent ? 'rgba(0,229,204,.12)' : 'var(--bg2)',
+    color: accent ? TEAL : 'var(--text)', fontSize: accent ? 13 : 22,
+    fontWeight: 700, cursor: 'pointer', userSelect: 'none', touchAction: 'manipulation',
+  });
 
   return (
     <>
       <SiteNav />
-      <main id="main-content" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '90px 20px 48px', direction: 'rtl' }}>
+      <main id="main-content" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 16px 32px' }}>
 
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div className="sh-tag" style={{ display: 'inline-block', marginBottom: 8 }}>// שגיאה 404</div>
-          <h1 className="sh-title" style={{ fontSize: 'clamp(20px,4vw,30px)', marginBottom: 6 }}>
-            הדף לא נמצא
-          </h1>
-          <p style={{ color: 'var(--text3)', fontSize: 13, marginBottom: 0 }}>
-            {phase === 'intro' ? 'אבל יש כאן משחק הדפסה בינתיים 🖨️' : phase === 'playing' ? 'עקוב אחרי הקו המסומן עם העכבר' : 'סיום הדפסה!'}
-          </p>
-        </div>
-
-        {/* INTRO */}
         {phase === 'intro' && (
-          <div style={{ textAlign: 'center', maxWidth: 500, padding: '0 8px' }}>
-            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px 24px', marginBottom: 24 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, textAlign: 'right', marginBottom: 20 }}>
-                {[
-                  { icon: '🎯', title: 'מטרה', desc: 'עקוב אחרי קו ה-404 המסומן' },
-                  { icon: '🖱️', title: 'שליטה', desc: 'הזז את העכבר מעל הקווים' },
-                  { icon: '⏱️', title: 'זמן', desc: `${GAME_TIME} שניות לכסות כמה שיותר` },
-                  { icon: '📊', title: 'ניקוד', desc: 'אחוז הנתיב שכוסה' },
-                ].map(item => (
-                  <div key={item.title} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 20 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--teal)', marginBottom: 2 }}>{item.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{item.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={startGame} className="btn-hero" style={{ fontSize: 15, padding: '13px 40px', width: '100%' }}>
-                התחל להדפיס
-              </button>
+          <div style={{ textAlign: 'center', maxWidth: 420, direction: 'rtl' }}>
+            <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(36px,8vw,60px)', fontWeight: 900, color: TEAL, textShadow: `0 0 28px ${TEAL}80`, lineHeight: 1, marginBottom: 8 }}>404</div>
+            <h1 style={{ fontSize: 'clamp(16px,4vw,22px)', fontWeight: 700, marginBottom: 6 }}>הדף לא נמצא</h1>
+            <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 24 }}>אבל המדפסת שלנו מוכנה לקרב!</p>
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 24, fontSize: 13, color: 'var(--text2)', lineHeight: 2.2, direction: 'rtl' }}>
+              <div>← → &nbsp;|&nbsp; A D — תנועה</div>
+              <div>רווח &nbsp;|&nbsp; ↑ — ירי פילמנט</div>
+              <div>השמד את כל החלליות לפני שיגיעו!</div>
             </div>
-            <Link href="/" style={{ color: 'var(--text3)', fontSize: 13, textDecoration: 'none' }}>← חזרה לדף הבית</Link>
+            <button onClick={start} className="btn-hero" style={{ fontSize: 15, padding: '13px 44px' }}>התחל</button>
+            <div style={{ marginTop: 14 }}>
+              <Link href="/" style={{ color: 'var(--text3)', fontSize: 13, textDecoration: 'none' }}>← חזרה לדף הבית</Link>
+            </div>
           </div>
         )}
 
-        {/* PLAYING */}
         {phase === 'playing' && (
-          <div style={{ width: '100%', maxWidth: 700 }}>
-            {/* HUD */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '0 2px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 70 }}>
-                <span style={{ fontFamily: 'var(--font-orbitron)', fontSize: 24, fontWeight: 900, color: 'var(--teal)', lineHeight: 1 }}>{score}</span>
-                <span style={{ fontSize: 12, color: 'var(--text3)' }}>%</span>
-              </div>
-              <div style={{ flex: 1, height: 8, background: 'var(--bg3)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${pct}%`,
-                  background: timeLeft <= 10 ? PINK : `linear-gradient(90deg, ${TEAL}, #00b8a9)`,
-                  borderRadius: 4,
-                  transition: 'width 1s linear, background 0.4s',
-                }} />
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-orbitron)', fontSize: 20, fontWeight: 700,
-                color: timeLeft <= 10 ? PINK : 'var(--text)',
-                minWidth: 40, textAlign: 'center',
-                transition: 'color 0.3s',
-              }}>
-                {timeLeft}s
-              </div>
-            </div>
-
-            {/* Canvas */}
-            <div style={{
-              position: 'relative', borderRadius: 16, overflow: 'hidden',
-              border: `1px solid ${isOnCanvas ? 'rgba(0,229,204,0.4)' : 'var(--border)'}`,
-              background: 'var(--bg2)',
-              boxShadow: isOnCanvas ? '0 0 30px rgba(0,229,204,0.08)' : 'none',
-              transition: 'border-color .3s, box-shadow .3s',
-            }}>
-              <canvas
-                ref={canvasRef}
-                width={CW}
-                height={CH}
-                onMouseEnter={() => setIsOnCanvas(true)}
-                onMouseLeave={() => setIsOnCanvas(false)}
-                style={{ display: 'block', width: '100%', height: 'auto', cursor: 'none', touchAction: 'none' }}
-              />
-              {!isOnCanvas && (
-                <div style={{
-                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  pointerEvents: 'none',
-                }}>
-                  <div style={{ background: 'rgba(5,7,15,0.7)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 20px', fontSize: 13, color: 'var(--text2)' }}>
-                    הזז את העכבר לכאן
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Score bar */}
-            <div style={{ marginTop: 10, height: 4, background: 'var(--bg3)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${score}%`,
-                background: score >= 80 ? TEAL : score >= 50 ? '#00b8a9' : 'rgba(0,229,204,0.5)',
-                borderRadius: 2, transition: 'width 0.15s',
-              }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <canvas ref={canvasRef} width={CW} height={CH} style={{ display: 'block', borderRadius: 14, border: '1px solid var(--border)', maxWidth: '100%', maxHeight: '70vh' }} />
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <button style={btn()} onPointerDown={() => tLeft(true)} onPointerUp={() => tLeft(false)} onPointerLeave={() => tLeft(false)}>←</button>
+              <button style={btn(true)} onPointerDown={tShoot}>ירי</button>
+              <button style={btn()} onPointerDown={() => tRight(true)} onPointerUp={() => tRight(false)} onPointerLeave={() => tRight(false)}>→</button>
             </div>
           </div>
         )}
 
-        {/* DONE */}
-        {phase === 'done' && (
-          <div style={{ textAlign: 'center', maxWidth: 420 }}>
-            <div style={{ fontSize: 56, marginBottom: 10, lineHeight: 1 }}>{icon}</div>
-            <h2 style={{ fontSize: 'clamp(20px,4vw,26px)', fontWeight: 800, marginBottom: 6 }}>{title}</h2>
-            <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(48px,10vw,72px)', fontWeight: 900, color: 'var(--teal)', lineHeight: 1, marginBottom: 10, textShadow: '0 0 30px rgba(0,229,204,0.4)' }}>
-              {score}%
+        {(phase === 'win' || phase === 'gameover') && (
+          <div style={{ textAlign: 'center', maxWidth: 360, direction: 'rtl' }}>
+            <div style={{ fontSize: 54, marginBottom: 10, lineHeight: 1 }}>{phase === 'win' ? '🏆' : '💥'}</div>
+            <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(24px,6vw,36px)', fontWeight: 900, color: phase === 'win' ? TEAL : PINK, textShadow: `0 0 24px ${phase === 'win' ? TEAL : PINK}`, marginBottom: 8 }}>
+              {phase === 'win' ? 'ניצחת!' : 'GAME OVER'}
             </div>
-            <p style={{ color: 'var(--text2)', fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>{msg}</p>
-
-            {/* Accuracy bar */}
-            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginBottom: 28, textAlign: 'right' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
-                <span>דיוק הדפסה</span>
-                <span style={{ color: 'var(--teal)', fontWeight: 700 }}>{score}%</span>
-              </div>
-              <div style={{ height: 8, background: 'var(--bg3)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${score}%`, background: `linear-gradient(90deg, ${TEAL}, #00b8a9)`, borderRadius: 4, transition: 'width 1s ease-out' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, gap: 8 }}>
-                {[
-                  { label: 'מאסטר', val: '95%+', active: score >= 95 },
-                  { label: 'מומחה', val: '80%+', active: score >= 80 && score < 95 },
-                  { label: 'טוב', val: '60%+', active: score >= 60 && score < 80 },
-                  { label: 'בסיסי', val: '35%+', active: score >= 35 && score < 60 },
-                ].map(r => (
-                  <div key={r.label} style={{ flex: 1, padding: '6px 4px', borderRadius: 6, background: r.active ? 'rgba(0,229,204,0.12)' : 'var(--bg3)', border: `1px solid ${r.active ? 'rgba(0,229,204,0.4)' : 'transparent'}`, fontSize: 10, color: r.active ? TEAL : 'var(--text3)', textAlign: 'center', transition: 'all .3s' }}>
-                    <div style={{ fontWeight: 700 }}>{r.label}</div>
-                    <div style={{ opacity: 0.7 }}>{r.val}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+            <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 52, fontWeight: 900, color: GOLD, textShadow: `0 0 20px ${GOLD}60`, marginBottom: 8 }}>{score}</div>
+            {hi > 0 && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 22 }}>שיא: {hi}</div>}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={startGame} className="btn-hero" style={{ fontSize: 14, padding: '12px 28px' }}>
-                שחק שוב
-              </button>
-              <Link href="/" className="btn-ghost" style={{ display: 'inline-block', fontSize: 14, padding: '12px 24px' }}>
-                חזרה לדף הבית
-              </Link>
+              <button onClick={start} className="btn-hero" style={{ fontSize: 14, padding: '12px 30px' }}>שחק שוב</button>
+              <Link href="/" className="btn-ghost" style={{ display: 'inline-block', fontSize: 14, padding: '12px 24px' }}>דף הבית</Link>
             </div>
           </div>
         )}
