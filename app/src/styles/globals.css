@@ -671,6 +671,8 @@ a { text-decoration: none; color: inherit; }
 .gal-grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .gal-card2 { background: var(--bg2); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; transition: all .2s; }
 .gal-card2:hover { border-color: rgba(0,229,204,.22); transform: translateY(-2px); }
+.blog-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: border-color .2s, transform .2s; cursor: pointer; }
+.blog-card:hover { border-color: var(--teal); transform: translateY(-4px); }
 .gal-th { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; font-size: 38px; overflow: hidden; background: var(--bg3); }
 .gal-th img { width: 100%; height: 100%; object-fit: cover; }
 
