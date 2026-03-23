@@ -109,7 +109,15 @@ export default function Game404() {
   const [hi, setHi] = useState(0);
   const gs = useRef(makeState());
   const keys = useRef(new Set<string>());
+  const mouse = useRef({ x: CW / 2, shooting: false });
   const raf = useRef(0);
+
+  const getCanvasX = useCallback((clientX: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return CW / 2;
+    const rect = canvas.getBoundingClientRect();
+    return Math.max(20, Math.min(CW - 20, (clientX - rect.left) * (CW / rect.width)));
+  }, []);
 
   function spawnParticles(x: number, y: number, color: string, n: number) {
     const s = gs.current;
@@ -133,10 +141,17 @@ export default function Game404() {
       const s = gs.current;
       s.t += 0.016;
 
+      // Mouse movement (smooth follow)
+      const targetX = mouse.current.x;
+      const dx = targetX - s.px;
+      s.px += dx * 0.18;
+      s.px = Math.max(20, Math.min(CW - 20, s.px));
+      // Keyboard fallback
       if (keys.current.has('ArrowLeft') || keys.current.has('a')) s.px = Math.max(20, s.px - PLAYER_SPEED);
       if (keys.current.has('ArrowRight') || keys.current.has('d')) s.px = Math.min(CW - 20, s.px + PLAYER_SPEED);
       if (s.shootCD > 0) s.shootCD--;
-      if ((keys.current.has(' ') || keys.current.has('ArrowUp') || keys.current.has('w')) && s.shootCD === 0) {
+      const wantShoot = mouse.current.shooting || keys.current.has(' ') || keys.current.has('ArrowUp') || keys.current.has('w');
+      if (wantShoot && s.shootCD === 0) {
         s.bullets.push({ x: s.px, y: s.py - 20, dy: -P_BULLET_SPEED });
         s.shootCD = SHOOT_CD;
       }
@@ -270,17 +285,20 @@ export default function Game404() {
     return () => { window.removeEventListener('keydown', dn); window.removeEventListener('keyup', up); };
   }, [phase]);
 
-  const tLeft  = useCallback((on: boolean) => { if (on) keys.current.add('ArrowLeft');  else keys.current.delete('ArrowLeft');  }, []);
-  const tRight = useCallback((on: boolean) => { if (on) keys.current.add('ArrowRight'); else keys.current.delete('ArrowRight'); }, []);
-  const tShoot = useCallback(() => { keys.current.add(' '); setTimeout(() => keys.current.delete(' '), 80); }, []);
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    mouse.current.x = getCanvasX(e.clientX);
+  }, [getCanvasX]);
 
-  const btn = (accent?: boolean): React.CSSProperties => ({
-    width: 64, height: 64, borderRadius: 12,
-    border: `1px solid ${accent ? TEAL : 'var(--border)'}`,
-    background: accent ? 'rgba(0,229,204,.12)' : 'var(--bg2)',
-    color: accent ? TEAL : 'var(--text)', fontSize: accent ? 13 : 22,
-    fontWeight: 700, cursor: 'pointer', userSelect: 'none', touchAction: 'manipulation',
-  });
+  const onMouseDown = useCallback(() => { mouse.current.shooting = true; }, []);
+  const onMouseUp   = useCallback(() => { mouse.current.shooting = false; }, []);
+
+  const onTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    mouse.current.x = getCanvasX(e.touches[0].clientX);
+    mouse.current.shooting = true;
+  }, [getCanvasX]);
+
+  const onTouchEnd = useCallback(() => { mouse.current.shooting = false; }, []);
 
   return (
     <>
@@ -293,8 +311,8 @@ export default function Game404() {
             <h1 style={{ fontSize: 'clamp(16px,4vw,22px)', fontWeight: 700, marginBottom: 6 }}>הדף לא נמצא</h1>
             <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 24 }}>אבל המדפסת שלנו מוכנה לקרב!</p>
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 24, fontSize: 13, color: 'var(--text2)', lineHeight: 2.2, direction: 'rtl' }}>
-              <div>← → &nbsp;|&nbsp; A D — תנועה</div>
-              <div>רווח &nbsp;|&nbsp; ↑ — ירי פילמנט</div>
+              <div>🖱️ הזזת עכבר — תנועה</div>
+              <div>🖱️ לחיצה — ירי פילמנט</div>
               <div>השמד את כל החלליות לפני שיגיעו!</div>
             </div>
             <button onClick={start} className="btn-hero" style={{ fontSize: 15, padding: '13px 44px' }}>התחל</button>
@@ -305,18 +323,24 @@ export default function Game404() {
         )}
 
         {phase === 'playing' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <canvas ref={canvasRef} width={CW} height={CH} style={{ display: 'block', borderRadius: 14, border: '1px solid var(--border)', maxWidth: '100%', maxHeight: '70vh' }} />
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-              <button style={btn()} onPointerDown={() => tLeft(true)} onPointerUp={() => tLeft(false)} onPointerLeave={() => tLeft(false)}>←</button>
-              <button style={btn(true)} onPointerDown={tShoot}>ירי</button>
-              <button style={btn()} onPointerDown={() => tRight(true)} onPointerUp={() => tRight(false)} onPointerLeave={() => tRight(false)}>→</button>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <canvas
+              ref={canvasRef} width={CW} height={CH}
+              onMouseMove={onMouseMove}
+              onMouseDown={onMouseDown}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseUp}
+              onTouchMove={onTouchMove}
+              onTouchStart={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              style={{ display: 'block', borderRadius: 14, border: '1px solid var(--border)', maxWidth: '100%', maxHeight: '70vh', cursor: 'crosshair', touchAction: 'none' }}
+            />
+            <div style={{ fontSize: 11, color: 'var(--text3)' }}>הזז עכבר • לחץ לירות</div>
           </div>
         )}
 
         {(phase === 'win' || phase === 'gameover') && (
-          <div style={{ textAlign: 'center', maxWidth: 360, direction: 'rtl' }}>
+          <div style={{ textAlign: 'center', maxWidth: 360, direction: 'rtl' }} onKeyDown={e => e.key === ' ' && start()} tabIndex={0}>
             <div style={{ fontSize: 54, marginBottom: 10, lineHeight: 1 }}>{phase === 'win' ? '🏆' : '💥'}</div>
             <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(24px,6vw,36px)', fontWeight: 900, color: phase === 'win' ? TEAL : PINK, textShadow: `0 0 24px ${phase === 'win' ? TEAL : PINK}`, marginBottom: 8 }}>
               {phase === 'win' ? 'ניצחת!' : 'GAME OVER'}
