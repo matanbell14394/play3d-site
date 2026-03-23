@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma/prisma';
 import HomeClient from './HomeClient';
 
 export const metadata: Metadata = {
-  title: 'PLAY3D | הדפסות תלת מימד מקצועיות — טבעון',
+  title: 'PLAY3D | הדפסות תלת מימד מקצועיות',
   description: 'שירות הדפסות תלת מימד מקצועי בטבעון. FDM — PLA, PETG, ABS, TPU. מעל 500 פרויקטים מוצלחים. הזמינו עכשיו!',
   keywords: ['הדפסות תלת מימד', 'דפוס 3D', 'FDM', 'PLA', 'PETG', 'טבעון', 'ישראל', '3D printing', 'play3d'],
   openGraph: {
