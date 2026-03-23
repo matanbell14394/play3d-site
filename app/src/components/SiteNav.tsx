@@ -6,7 +6,6 @@ import ThemeToggle from '@/components/ThemeToggle';
 
 const LINKS = [
   { href: '/', label: 'בית', id: 'home' },
-  { href: '/materials', label: 'חומרים', id: 'materials' },
   { href: '/gallery', label: 'גלריה', id: 'gallery' },
   { href: '/how-it-works', label: 'איך זה עובד', id: 'how-it-works' },
   { href: '/blog', label: 'בלוג', id: 'blog' },
