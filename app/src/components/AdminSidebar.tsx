@@ -50,10 +50,6 @@ export default function AdminSidebar({ initials, name, role }: Props) {
 
       {/* Sidebar */}
       <nav className={`sidebar${open ? ' sidebar-open' : ''}`}>
-        <div className="sb-logo">
-          <div className="logo"><span className="nav-logo-play">PLAY</span><span className="nav-logo-3d">3D</span></div>
-          <div className="sub">ADMIN</div>
-        </div>
         <div className="nav-sec">
           {NAV_ITEMS.map((group) => (
             <div key={group.label}>
