@@ -255,21 +255,21 @@ export default function HomeClient({ initialGallery }: { initialGallery: Gallery
         <div className="order-wrap">
           <div className="form-grid">
             <div style={{ gridColumn: '1/-1', fontSize: 10, color: 'var(--teal)', letterSpacing: 2, textTransform: 'uppercase', paddingBottom: 4, borderBottom: '1px solid rgba(0,229,204,.1)' }}>פרטי הרשמה</div>
-            <div className="fg"><label>שם מלא *</label><input placeholder="ישראל ישראלי" /></div>
-            <div className="fg"><label>אימייל *</label><input type="email" placeholder="your@email.com" /></div>
-            <div className="fg"><label>טלפון *</label><input placeholder="050-0000000" /></div>
-            <div className="fg"><label>עיר / ישוב</label><input placeholder="תל אביב" /></div>
+            <div className="fg"><label htmlFor="h-name">שם מלא *</label><input id="h-name" placeholder="ישראל ישראלי" /></div>
+            <div className="fg"><label htmlFor="h-email">אימייל *</label><input id="h-email" type="email" placeholder="your@email.com" /></div>
+            <div className="fg"><label htmlFor="h-phone">טלפון *</label><input id="h-phone" placeholder="050-0000000" /></div>
+            <div className="fg"><label htmlFor="h-city">עיר / ישוב</label><input id="h-city" placeholder="תל אביב" /></div>
             <div style={{ gridColumn: '1/-1', fontSize: 10, color: 'var(--teal)', letterSpacing: 2, textTransform: 'uppercase', paddingBottom: 4, borderBottom: '1px solid rgba(0,229,204,.1)', marginTop: 6 }}>פרטי ההזמנה</div>
             <div className="fg">
-              <label>סוג הדפסה</label>
-              <select>
+              <label htmlFor="h-type">סוג הדפסה</label>
+              <select id="h-type">
                 <option value="">— בחר סוג —</option>
                 <option>FDM — PLA</option><option>FDM — PETG</option><option>FDM — ABS</option><option>FDM — TPU</option>
                 <option>לא בטוח — ייעץ לי</option>
               </select>
             </div>
-            <div className="fg"><label>כמות</label><input type="number" defaultValue={1} min={1} /></div>
-            <div className="fg"><label>קובץ STL</label><input type="file" accept=".stl,.obj,.3mf" style={{ padding: '8px 12px' }} /></div>
+            <div className="fg"><label htmlFor="h-qty">כמות</label><input id="h-qty" type="number" defaultValue={1} min={1} /></div>
+            <div className="fg"><label htmlFor="h-file">קובץ STL</label><input id="h-file" type="file" accept=".stl,.obj,.3mf" style={{ padding: '8px 12px' }} /></div>
             <div className="fg full">
               <label>קישור מ-MakerWorld (אופציונלי)</label>
               <div style={{ display: 'flex', gap: 8 }}>

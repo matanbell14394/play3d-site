@@ -229,9 +229,26 @@ model GalleryProject {
   description   String?
   imageUrl      String?        // Main thumbnail image
   images        String         @default("[]") // JSON array of additional image URLs
+  category      String         @default("כללי")
 
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String   // HTML content
+  published   Boolean  @default(false)
+  coverImage  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([published])
 }
 
 model PrinterStatus {

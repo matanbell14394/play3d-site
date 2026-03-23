@@ -10,13 +10,17 @@ import AccessibilityWidget from "@/components/AccessibilityWidget";
 const orbitron = Orbitron({
   variable: "--font-orbitron",
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
+  weight: ["700", "900"],
+  display: "swap",
+  preload: true,
 });
 
 const notoSansHebrew = Noto_Sans_Hebrew({
   variable: "--font-noto-hebrew",
   subsets: ["hebrew"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "700"],
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
