@@ -141,11 +141,8 @@ export default function Game404() {
       const s = gs.current;
       s.t += 0.016;
 
-      // Mouse movement (smooth follow)
-      const targetX = mouse.current.x;
-      const dx = targetX - s.px;
-      s.px += dx * 0.18;
-      s.px = Math.max(20, Math.min(CW - 20, s.px));
+      // Mouse movement (instant follow)
+      s.px = Math.max(20, Math.min(CW - 20, mouse.current.x));
       // Keyboard fallback
       if (keys.current.has('ArrowLeft') || keys.current.has('a')) s.px = Math.max(20, s.px - PLAYER_SPEED);
       if (keys.current.has('ArrowRight') || keys.current.has('d')) s.px = Math.min(CW - 20, s.px + PLAYER_SPEED);
@@ -203,7 +200,7 @@ export default function Game404() {
       if (s.invTimer === 0) {
         for (const b of s.eBullets) {
           if (s.invTimer > 0) break; // prevent multi-hit in same frame
-          if (Math.abs(b.x - s.px) < 12 && Math.abs(b.y - s.py) < 12) {
+          if (Math.abs(b.x - s.px) < 9 && Math.abs(b.y - s.py) < 9) {
             b.y = CH + 999; s.lives--; setLives(s.lives);
             s.invTimer = 150; s.shake = 10;
             spawnParticles(s.px, s.py, TEAL, 20);
