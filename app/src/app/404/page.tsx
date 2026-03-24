@@ -111,10 +111,12 @@ export default function PerfectLayer() {
       s.score++;
       s.speed    = Math.min(MAX_SPEED, INIT_SPEED + s.score * SPEED_INC);
       s.targetW  = Math.max(MIN_TW, INIT_TW - s.score * TW_SHRINK);
-      // Shift target zone every 5 layers to mix it up
-      if (s.score % 5 === 0) {
-        s.targetX = MARGIN + Math.random() * (CW - 2 * MARGIN - s.targetW);
-      }
+      // Always move zone — ensure it jumps at least 80px from current position
+      const playW = CW - 2 * MARGIN - s.targetW;
+      let newX: number;
+      do { newX = MARGIN + Math.random() * playW; }
+      while (Math.abs(newX - s.targetX) < 80 && playW > 80);
+      s.targetX = newX;
       s.flashG = 1;
       s.layers.push(LAYER_COLORS[s.score % LAYER_COLORS.length]);
       // Filament burst particles
