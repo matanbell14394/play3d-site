@@ -14,11 +14,11 @@ const LAYER_H   = 5;
 
 // ─── Game tuning ───────────────────────────────────────────────────────────────
 const INIT_SPEED  = 2.6;
-const SPEED_INC   = 0.19;  // per layer
-const MAX_SPEED   = 13;
-const INIT_TW     = 90;    // initial target width (px)
-const TW_SHRINK   = 3;     // shrink per layer
-const MIN_TW      = 22;    // minimum target width
+const SPEED_INC   = 0.0096; // per layer → reaches MAX at ~1400
+const MAX_SPEED   = 16;
+const INIT_TW     = 90;     // initial target width (px)
+const TW_SHRINK   = 0.049;  // per layer → 22px min at ~1400
+const MIN_TW      = 22;     // minimum target width
 const SPAG_FRAMES = 90;    // spaghetti animation duration
 
 // ─── Colours ──────────────────────────────────────────────────────────────────
