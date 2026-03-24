@@ -105,7 +105,10 @@ export default function PerfectLayer() {
     const s = gs.current;
     if (s.phase !== 'playing') return;
 
-    const hit = s.x >= s.targetX && s.x <= s.targetX + s.targetW;
+    // Tolerance matches the nozzle tip glow radius (~8px) so the visible
+    // edge of the nozzle is what counts, not just the center pixel.
+    const tol = 8;
+    const hit = s.x + tol >= s.targetX && s.x - tol <= s.targetX + s.targetW;
 
     if (hit) {
       s.score++;
@@ -376,13 +379,6 @@ export default function PerfectLayer() {
 
       // ── Update ─────────────────────────────────────────────────────────────
 
-      // Move nozzle during play and spaghetti
-      if (ph === 'playing' || ph === 'spaghetti') {
-        s.x += s.speed * s.dir;
-        if (s.x >= CW - MARGIN) { s.x = CW - MARGIN; s.dir = -1; }
-        if (s.x <= MARGIN)      { s.x = MARGIN;       s.dir =  1; }
-      }
-
       // Flash decay
       if (s.flashG > 0) s.flashG = Math.max(0, s.flashG - 0.06);
       if (s.flashR > 0) s.flashR = Math.max(0, s.flashR - 0.05);
@@ -434,6 +430,15 @@ export default function PerfectLayer() {
       }
 
       ctx.restore();
+
+      // Move nozzle AFTER draw — s.x now always equals the last rendered position,
+      // so any click that fires before the next tick checks the correct visible position.
+      if (ph === 'playing' || ph === 'spaghetti') {
+        s.x += s.speed * s.dir;
+        if (s.x >= CW - MARGIN) { s.x = CW - MARGIN; s.dir = -1; }
+        if (s.x <= MARGIN)      { s.x = MARGIN;       s.dir =  1; }
+      }
+
       rafRef.current = requestAnimationFrame(tick);
     }
 
