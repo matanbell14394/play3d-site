@@ -286,6 +286,15 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+model LeaderboardEntry {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(20)
+  score     Int
+  createdAt DateTime @default(now())
+
+  @@index([score(sort: Desc)])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   action    String

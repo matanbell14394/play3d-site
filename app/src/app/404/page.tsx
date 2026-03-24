@@ -3,134 +3,366 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import SiteNav from '@/components/SiteNav';
 
-const CW = 440, CH = 570;
-const TEAL = '#00e5cc', GOLD = '#ffd700', PINK = '#ff2d78';
+// ─── Canvas constants ──────────────────────────────────────────────────────────
+const CW = 560, CH = 390;
+const MARGIN    = 50;
+const RAIL_Y    = 60;
+const NOZZLE_Y  = RAIL_Y + 26;   // heater block centre
+const TIP_Y     = NOZZLE_Y + 28; // nozzle tip
+const PLATE_Y   = CH - 52;
+const LAYER_H   = 5;
 
-const PRIZES = [
-  { label: '5% הנחה',     desc: 'קוד הנחה על הזמנה הבאה',      color: '#7b69ee', rarity: 'נפוץ',    tier: 0, w: 0.30 },
-  { label: 'ייעוץ חינם',  desc: 'שיחת ייעוץ 3D מקצועית',       color: '#4a9eff', rarity: 'נפוץ',    tier: 0, w: 0.25 },
-  { label: '10% הנחה',    desc: 'קוד הנחה מיוחד',               color: TEAL,      rarity: 'בינוני',  tier: 1, w: 0.20 },
-  { label: 'דגם 3D חינם', desc: 'עיצוב דגם לבחירתך',           color: '#ff7c1f', rarity: 'בינוני',  tier: 1, w: 0.15 },
-  { label: '15% הנחה',    desc: 'קוד נדיר! עד סוף החודש',       color: PINK,      rarity: '🔥 נדיר', tier: 2, w: 0.08 },
-  { label: 'הדפסה חינם!', desc: 'הדפסה אחת בחינם לחלוטין',     color: GOLD,      rarity: '⭐ אגדי', tier: 3, w: 0.02 },
+// ─── Game tuning ───────────────────────────────────────────────────────────────
+const INIT_SPEED  = 2.6;
+const SPEED_INC   = 0.19;  // per layer
+const MAX_SPEED   = 13;
+const INIT_TW     = 90;    // initial target width (px)
+const TW_SHRINK   = 3;     // shrink per layer
+const MIN_TW      = 22;    // minimum target width
+const SPAG_FRAMES = 90;    // spaghetti animation duration
+
+// ─── Colours ──────────────────────────────────────────────────────────────────
+const TEAL  = '#00e5cc';
+const GREEN = '#00ff66';
+const RED   = '#ff3344';
+const GOLD  = '#ffd700';
+
+const LAYER_COLORS = [
+  '#00e5cc', '#7b69ee', '#ff7c1f',
+  '#ff2d78', '#4a9eff', '#ffd700', '#44d62c',
 ];
 
-const PITY_R = 8, PITY_L = 30; // guaranteed rare after 8, legendary after 30
+// ─── Types ─────────────────────────────────────────────────────────────────────
+type Phase    = 'intro' | 'playing' | 'spaghetti' | 'gameover';
+type LBEntry  = { id: number; name: string; score: number };
+type SpagLine = { x: number; y: number; cpx: number; cpy: number; ex: number; ey: number; col: string; life: number };
+type Pt       = { x: number; y: number; vx: number; vy: number; life: number; col: string; r: number };
 
-type Phase = 'idle' | 'spinning' | 'dispensing' | 'reveal';
-type Ball  = { x: number; y: number; vx: number; vy: number; pi: number };
-type Pt    = { x: number; y: number; vx: number; vy: number; life: number; col: string; r: number };
-
-const GCX = CW / 2, GCY = 200, GR = 126;
-const BR = 12, NB = 13;
-const TUBE_TOP = GCY + GR - 4, TUBE_BOT = 476;
-
-function simpleRoll(): number {
-  let r = Math.random();
-  for (let i = 0; i < PRIZES.length; i++) { r -= PRIZES[i].w; if (r <= 0) return i; }
-  return 0;
+// ─── API helpers ───────────────────────────────────────────────────────────────
+async function fetchLB(): Promise<LBEntry[]> {
+  try { return await (await fetch('/api/leaderboard')).json(); } catch { return []; }
+}
+async function postLB(name: string, score: number): Promise<LBEntry | null> {
+  try {
+    const r = await fetch('/api/leaderboard', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, score }),
+    });
+    return r.ok ? r.json() : null;
+  } catch { return null; }
 }
 
-function pitiedRoll(pR: number, pL: number): number {
-  if (pL >= PITY_L) return PRIZES.length - 1;
-  if (pR >= PITY_R) return Math.random() < 0.8 ? 4 : 5;
-  return simpleRoll();
-}
-
-function initBalls(): Ball[] {
-  return Array.from({ length: NB }, (_, i) => {
-    const a = (i / NB) * Math.PI * 2 + Math.random();
-    const d = (0.2 + Math.random() * 0.55) * (GR - BR - 8);
-    return { x: GCX + d * Math.cos(a), y: GCY + d * Math.sin(a), vx: (Math.random()-.5)*2, vy: (Math.random()-.5)*2, pi: simpleRoll() };
-  });
-}
-
-export default function BallMachine404() {
+// ──────────────────────────────────────────────────────────────────────────────
+export default function PerfectLayer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
-  const [phase,  setPhase]  = useState<Phase>('idle');
-  const [prize,  setPrize]  = useState<typeof PRIZES[number] | null>(null);
-  const [spins,  setSpins]  = useState(0);
-  const [uiPityR, setUiPityR] = useState(0);
-  const [uiPityL, setUiPityL] = useState(0);
-  const [hist,   setHist]   = useState<number[]>([]);
 
+  // Game state — lives in a ref so the RAF closure always sees fresh values
   const gs = useRef({
-    balls:  initBalls(),
-    parts:  [] as Pt[],
-    sel:    null as Ball | null,
-    presel: null as { ball: Ball; pi: number } | null,
-    ph:     'idle' as Phase,
-    spinT:  0, crank: 0, t: 0,
-    pityR:  0, pityL:  0, totalSpins: 0,
-    flash:  0, flashCol: TEAL as string, shake: 0,
-    history: [] as number[],
-    scanX:  0,
+    x:       MARGIN + (CW - 2 * MARGIN) / 2,
+    dir:     1 as 1 | -1,
+    speed:   INIT_SPEED,
+    score:   0,
+    targetX: MARGIN + (CW - 2 * MARGIN) / 2 - INIT_TW / 2,
+    targetW: INIT_TW,
+    phase:   'intro' as Phase,
+    t:       0,
+    spagT:   0,
+    flashG:  0,
+    flashR:  0,
+    shakeX:  0,
+    shakeY:  0,
+    layers:  [] as string[],
+    spaghetti: [] as SpagLine[],
+    parts:     [] as Pt[],
   });
 
-  const syncP = useCallback((p: Phase) => { gs.current.ph = p; setPhase(p); }, []);
+  // React state — drives the HTML overlay / leaderboard UI
+  const [phase,   setPhase]  = useState<Phase>('intro');
+  const [score,   setScore]  = useState(0);
+  const [lb,      setLb]     = useState<LBEntry[]>([]);
+  const [myId,    setMyId]   = useState<number | null>(null);
+  const [name,    setName]   = useState('');
+  const [subbing, setSubbing] = useState(false);
+  const [sent,    setSent]   = useState(false);
 
-  const spin = useCallback(() => {
-    if (gs.current.ph !== 'idle') return;
-    gs.current.spinT = 0; gs.current.presel = null;
-    syncP('spinning');
-  }, [syncP]);
+  const syncP = useCallback((p: Phase) => { gs.current.phase = p; setPhase(p); }, []);
 
-  const again = useCallback(() => {
+  // ── Start / restart game ────────────────────────────────────────────────────
+  const startGame = useCallback(() => {
     const s = gs.current;
-    if (s.sel) {
-      s.sel.x = GCX; s.sel.y = GCY - 25;
-      s.sel.pi = simpleRoll();
-      s.sel.vx = (Math.random()-.5)*4; s.sel.vy = -3;
-    }
-    s.sel = null; s.presel = null; s.parts = []; s.flash = 0; s.shake = 0;
-    syncP('idle');
+    const mid = MARGIN + (CW - 2 * MARGIN) / 2;
+    s.x = mid; s.dir = 1; s.speed = INIT_SPEED; s.score = 0;
+    s.targetX = mid - INIT_TW / 2; s.targetW = INIT_TW;
+    s.flashG = 0; s.flashR = 0; s.shakeX = 0; s.shakeY = 0;
+    s.spaghetti = []; s.parts = []; s.layers = []; s.spagT = 0;
+    setScore(0); setSent(false);
+    syncP('playing');
   }, [syncP]);
 
+  // ── Attempt to place a layer ────────────────────────────────────────────────
+  const attempt = useCallback(() => {
+    const s = gs.current;
+    if (s.phase !== 'playing') return;
+
+    const hit = s.x >= s.targetX && s.x <= s.targetX + s.targetW;
+
+    if (hit) {
+      s.score++;
+      s.speed    = Math.min(MAX_SPEED, INIT_SPEED + s.score * SPEED_INC);
+      s.targetW  = Math.max(MIN_TW, INIT_TW - s.score * TW_SHRINK);
+      // Shift target zone every 5 layers to mix it up
+      if (s.score % 5 === 0) {
+        s.targetX = MARGIN + Math.random() * (CW - 2 * MARGIN - s.targetW);
+      }
+      s.flashG = 1;
+      s.layers.push(LAYER_COLORS[s.score % LAYER_COLORS.length]);
+      // Filament burst particles
+      for (let i = 0; i < 14; i++) {
+        const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3.5;
+        s.parts.push({ x: s.x, y: TIP_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2, life: 1, col: TEAL, r: 1 + Math.random() * 2 });
+      }
+      setScore(s.score);
+    } else {
+      // ── FAIL — trigger spaghetti ────────────────────────────────────────────
+      s.flashR = 1; s.shakeX = 10; s.shakeY = 7;
+      for (let i = 0; i < 22; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 35 + Math.random() * 90;
+        s.spaghetti.push({
+          x: s.x, y: TIP_Y,
+          cpx: s.x + (Math.random() - .5) * 60,
+          cpy: TIP_Y + (Math.random() - .5) * 50,
+          ex:  s.x + Math.cos(ang) * dist,
+          ey:  TIP_Y + Math.sin(ang) * dist + 20,
+          col: LAYER_COLORS[Math.floor(Math.random() * LAYER_COLORS.length)],
+          life: 1,
+        });
+      }
+      s.spagT = 0;
+      syncP('spaghetti');
+    }
+  }, [syncP]);
+
+  // ── Universal action handler ────────────────────────────────────────────────
+  const action = useCallback(() => {
+    const p = gs.current.phase;
+    if (p === 'intro')    startGame();
+    else if (p === 'playing')  attempt();
+    else if (p === 'gameover') startGame();
+    // 'spaghetti': wait for animation
+  }, [startGame, attempt]);
+
+  // Keyboard
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (document.activeElement?.tagName === 'INPUT') return;
+        e.preventDefault();
+        action();
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [action]);
+
+  // Load leaderboard on mount
+  useEffect(() => { fetchLB().then(setLb); }, []);
+
+  // ── Submit score ────────────────────────────────────────────────────────────
+  const submit = useCallback(async () => {
+    if (!name.trim() || subbing || sent) return;
+    setSubbing(true);
+    const entry = await postLB(name.trim(), score);
+    setSubbing(false);
+    if (entry) {
+      setMyId(entry.id);
+      setSent(true);
+      fetchLB().then(setLb);
+    }
+  }, [name, score, subbing, sent]);
+
+  // ── RAF render loop ─────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx    = canvas.getContext('2d')!;
     let alive = true;
 
-    function burst(x: number, y: number, col: string, n: number, pw = 1) {
-      for (let i = 0; i < n; i++) {
-        const a = Math.random() * Math.PI * 2, sp = (1.5 + Math.random() * 4.5) * pw;
-        gs.current.parts.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 2*pw, life: 1, col, r: (1.5 + Math.random()*3.5)*pw });
-      }
-    }
+    // ── Drawing helpers ──────────────────────────────────────────────────────
 
-    function drawBall(x: number, y: number, pi: number, glow = 0) {
-      const c = PRIZES[pi].color;
-      if (glow > 0) {
-        const rg = ctx.createRadialGradient(x, y, 0, x, y, BR + 14 * glow);
-        rg.addColorStop(0, c + Math.round(glow * 160).toString(16).padStart(2, '0'));
-        rg.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(x, y, BR + 14 * glow, 0, Math.PI*2); ctx.fill();
-      }
-      const g = ctx.createRadialGradient(x-3, y-3, 0.5, x, y, BR);
-      g.addColorStop(0, 'rgba(255,255,255,0.82)'); g.addColorStop(0.18, c); g.addColorStop(1, c + '66');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, BR, 0, Math.PI*2); ctx.fill();
-      // Shine dot
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.beginPath(); ctx.arc(x-4, y-4, 3.5, 0, Math.PI*2); ctx.fill();
-    }
-
-    function drawHexGrid() {
-      const size = 22, h = size * Math.sqrt(3);
-      ctx.strokeStyle = 'rgba(0,229,204,0.055)'; ctx.lineWidth = 0.8;
-      for (let row = -6; row <= 6; row++) {
-        for (let col = -7; col <= 7; col++) {
-          const hx = GCX + col * size * 1.5;
-          const hy = GCY + row * h + (col % 2 !== 0 ? h / 2 : 0);
-          if (Math.hypot(hx - GCX, hy - GCY) > GR - 2) continue;
-          ctx.beginPath();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2 - Math.PI / 6;
-            const px = hx + size * 0.88 * Math.cos(a), py = hy + size * 0.88 * Math.sin(a);
-            k === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-          }
-          ctx.closePath(); ctx.stroke();
+    function drawBg() {
+      ctx.fillStyle = '#050a14';
+      ctx.fillRect(0, 0, CW, CH);
+      // Dot grid
+      ctx.fillStyle = 'rgba(0,229,204,0.055)';
+      for (let gx = 0; gx < CW; gx += 28)
+        for (let gy = 0; gy < CH; gy += 28) {
+          ctx.beginPath(); ctx.arc(gx, gy, 0.9, 0, Math.PI * 2); ctx.fill();
         }
+    }
+
+    function drawPlate() {
+      // Hatching below plate
+      ctx.save();
+      ctx.rect(MARGIN - 10, PLATE_Y, CW - 2 * (MARGIN - 10), CH - PLATE_Y);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(70,110,160,0.13)'; ctx.lineWidth = 1;
+      for (let i = -15; i < 25; i++) {
+        ctx.beginPath();
+        ctx.moveTo(MARGIN - 10 + i * 18, PLATE_Y);
+        ctx.lineTo(MARGIN - 10 + i * 18 + (CH - PLATE_Y), CH);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // Plate glow
+      const pg = ctx.createLinearGradient(0, PLATE_Y, 0, PLATE_Y + 18);
+      pg.addColorStop(0, TEAL + '30'); pg.addColorStop(1, 'transparent');
+      ctx.fillStyle = pg;
+      ctx.fillRect(MARGIN - 20, PLATE_Y, CW - 2 * (MARGIN - 20), 18);
+      // Plate line
+      const lineG = ctx.createLinearGradient(MARGIN - 20, 0, CW - MARGIN + 20, 0);
+      lineG.addColorStop(0, 'transparent');
+      lineG.addColorStop(0.1, TEAL); lineG.addColorStop(0.9, TEAL);
+      lineG.addColorStop(1, 'transparent');
+      ctx.strokeStyle = lineG; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(MARGIN - 20, PLATE_Y); ctx.lineTo(CW - MARGIN + 20, PLATE_Y); ctx.stroke();
+    }
+
+    function drawLayers(layers: string[]) {
+      const maxVisible = Math.floor((PLATE_Y - TIP_Y - 8) / LAYER_H);
+      const vis = Math.min(layers.length, maxVisible);
+      for (let i = 0; i < vis; i++) {
+        const y   = PLATE_Y - (i + 1) * LAYER_H;
+        const col = layers[layers.length - 1 - i]; // newest on top
+        ctx.fillStyle = col + 'aa';
+        ctx.fillRect(MARGIN, y, CW - 2 * MARGIN, LAYER_H - 1);
+      }
+      if (vis > 0) {
+        // Top layer bright highlight
+        const topY = PLATE_Y - vis * LAYER_H;
+        const topCol = layers[layers.length - 1];
+        const tg = ctx.createLinearGradient(0, topY, 0, topY + LAYER_H);
+        tg.addColorStop(0, topCol + 'ee'); tg.addColorStop(1, topCol + '55');
+        ctx.fillStyle = tg;
+        ctx.fillRect(MARGIN, topY, CW - 2 * MARGIN, LAYER_H);
+      }
+    }
+
+    function drawRail() {
+      const rg = ctx.createLinearGradient(0, RAIL_Y - 7, 0, RAIL_Y + 7);
+      rg.addColorStop(0,   '#4a5a7a');
+      rg.addColorStop(0.35,'#8a9aaa');
+      rg.addColorStop(0.5, '#c0d0e0');
+      rg.addColorStop(0.65,'#8a9aaa');
+      rg.addColorStop(1,   '#3a4a6a');
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.roundRect(MARGIN - 22, RAIL_Y - 7, CW - 2 * (MARGIN - 22), 14, 4); ctx.fill();
+      // Screws
+      for (let x = MARGIN; x <= CW - MARGIN; x += 56) {
+        ctx.fillStyle = '#4a5a70';
+        ctx.beginPath(); ctx.arc(x, RAIL_Y, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#8090a8'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.arc(x, RAIL_Y, 4.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#7090b0'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(x - 2.8, RAIL_Y); ctx.lineTo(x + 2.8, RAIL_Y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, RAIL_Y - 2.8); ctx.lineTo(x, RAIL_Y + 2.8); ctx.stroke();
+      }
+    }
+
+    function drawNozzle(x: number) {
+      // Carriage body on rail
+      ctx.fillStyle = '#2a3a50';
+      ctx.strokeStyle = '#4a5a70'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(x - 16, RAIL_Y - 9, 32, 18, 3); ctx.fill(); ctx.stroke();
+
+      // Connecting rod
+      ctx.strokeStyle = '#3a4a60'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, RAIL_Y + 9); ctx.lineTo(x, NOZZLE_Y - 7); ctx.stroke();
+
+      // Heater block
+      ctx.fillStyle = '#3a2010';
+      ctx.beginPath(); ctx.roundRect(x - 12, NOZZLE_Y - 8, 24, 16, 3); ctx.fill();
+      ctx.strokeStyle = '#7a4020'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(x - 12, NOZZLE_Y - 8, 24, 16, 3); ctx.stroke();
+      // Heater coil lines
+      ctx.strokeStyle = '#ff5500'; ctx.lineWidth = 1.4;
+      for (let i = 0; i < 3; i++) {
+        const hx = x - 7 + i * 6;
+        ctx.beginPath(); ctx.moveTo(hx, NOZZLE_Y - 5); ctx.lineTo(hx, NOZZLE_Y + 5); ctx.stroke();
+      }
+      // Thermal dot
+      ctx.fillStyle = '#ff2200';
+      ctx.beginPath(); ctx.arc(x, NOZZLE_Y, 2.5, 0, Math.PI * 2); ctx.fill();
+
+      // Heat break (thin, silver)
+      const hrg = ctx.createLinearGradient(x - 3, 0, x + 3, 0);
+      hrg.addColorStop(0, '#556677'); hrg.addColorStop(0.5, '#99aabb'); hrg.addColorStop(1, '#556677');
+      ctx.fillStyle = hrg;
+      ctx.beginPath(); ctx.roundRect(x - 3, NOZZLE_Y + 8, 6, 9, 1); ctx.fill();
+
+      // Nozzle body (wider)
+      const nbg = ctx.createLinearGradient(x - 6, 0, x + 6, 0);
+      nbg.addColorStop(0, '#445566'); nbg.addColorStop(0.5, '#778899'); nbg.addColorStop(1, '#445566');
+      ctx.fillStyle = nbg;
+      ctx.beginPath();
+      ctx.moveTo(x - 6, NOZZLE_Y + 17); ctx.lineTo(x + 6, NOZZLE_Y + 17);
+      ctx.lineTo(x + 2, TIP_Y); ctx.lineTo(x - 2, TIP_Y);
+      ctx.closePath(); ctx.fill();
+
+      // Tip glow
+      const tg = ctx.createRadialGradient(x, TIP_Y, 0, x, TIP_Y, 11);
+      tg.addColorStop(0, TEAL + 'dd'); tg.addColorStop(0.5, TEAL + '66'); tg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(x, TIP_Y, 11, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawTarget(tx: number, tw: number, t: number) {
+      const mid  = tx + tw / 2;
+      const pulse = 0.7 + 0.3 * Math.sin(t * 5);
+
+      // Background fill
+      ctx.fillStyle = 'rgba(0,255,80,0.07)';
+      ctx.fillRect(tx, NOZZLE_Y - 26, tw, 52);
+
+      // Dashed border
+      ctx.strokeStyle = `rgba(0,255,102,${0.6 * pulse})`; ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 3]);
+      ctx.strokeRect(tx, NOZZLE_Y - 26, tw, 52);
+      ctx.setLineDash([]);
+
+      // Vertical centre guide
+      ctx.strokeStyle = `rgba(0,255,102,${0.4 * pulse})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(mid, NOZZLE_Y - 32); ctx.lineTo(mid, NOZZLE_Y + 32); ctx.stroke();
+
+      // Pulsing target dot
+      ctx.fillStyle = `rgba(0,255,102,${0.8 * pulse})`;
+      ctx.beginPath(); ctx.arc(mid, NOZZLE_Y, 4 + 1.5 * pulse, 0, Math.PI * 2); ctx.fill();
+
+      // Corner triangles
+      const cSize = 6;
+      ctx.fillStyle = GREEN + 'cc';
+      const corners: [number, number][] = [
+        [tx,      NOZZLE_Y - 26],
+        [tx + tw, NOZZLE_Y - 26],
+        [tx,      NOZZLE_Y + 26],
+        [tx + tw, NOZZLE_Y + 26],
+      ];
+      for (const [cx, cy] of corners) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + (cx > CW/2 ? -cSize : cSize), cy);
+        ctx.lineTo(cx, cy + (cy > NOZZLE_Y ? cSize : -cSize));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    function drawSpaghetti(lines: SpagLine[]) {
+      for (const l of lines) {
+        ctx.strokeStyle = l.col + Math.round(l.life * 180).toString(16).padStart(2, '0');
+        ctx.lineWidth = 2.8 * l.life;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(l.x, l.y);
+        ctx.quadraticCurveTo(l.cpx, l.cpy, l.ex, l.ey);
+        ctx.stroke();
       }
     }
 
@@ -138,233 +370,68 @@ export default function BallMachine404() {
       if (!alive) return;
       const s = gs.current;
       s.t += 0.016;
-      const ph = s.ph;
-      const nearEnd = ph === 'spinning' && s.spinT > 108;
+      const ph = s.phase;
 
-      // Physics
-      for (const b of s.balls) {
-        if (b === s.sel) continue;
-        b.vy += 0.1;
-        if (ph === 'spinning' && !nearEnd) {
-          const dx = b.x - GCX, dy = b.y - GCY, ang = Math.atan2(dy, dx);
-          b.vx += Math.cos(ang + Math.PI/2) * 0.42;
-          b.vy += Math.sin(ang + Math.PI/2) * 0.42;
-        }
-        // Pull presel toward center during near-miss
-        if (s.presel && b === s.presel.ball && nearEnd) {
-          b.vx += (GCX - b.x) * 0.05;
-          b.vy += (GCY - b.y) * 0.05;
-        }
-        b.vx *= 0.965; b.vy *= 0.965;
-        b.x += b.vx; b.y += b.vy;
-        const dx = b.x - GCX, dy = b.y - GCY, d = Math.hypot(dx, dy), maxD = GR - BR;
-        if (d > maxD) {
-          const nx = dx/d, ny = dy/d;
-          b.x = GCX + nx*maxD; b.y = GCY + ny*maxD;
-          const dot = b.vx*nx + b.vy*ny;
-          b.vx = (b.vx - 2*dot*nx) * 0.62; b.vy = (b.vy - 2*dot*ny) * 0.62;
-        }
+      // ── Update ─────────────────────────────────────────────────────────────
+
+      // Move nozzle during play and spaghetti
+      if (ph === 'playing' || ph === 'spaghetti') {
+        s.x += s.speed * s.dir;
+        if (s.x >= CW - MARGIN) { s.x = CW - MARGIN; s.dir = -1; }
+        if (s.x <= MARGIN)      { s.x = MARGIN;       s.dir =  1; }
       }
 
-      // Spinning
-      if (ph === 'spinning') {
-        s.spinT++;
-        s.crank += nearEnd
-          ? 0.02 + Math.sin(s.spinT * 0.35) * 0.012  // slow + wobble
-          : 0.14;
+      // Flash decay
+      if (s.flashG > 0) s.flashG = Math.max(0, s.flashG - 0.06);
+      if (s.flashR > 0) s.flashR = Math.max(0, s.flashR - 0.05);
+      if (s.shakeX > 0.2) s.shakeX *= 0.78;
+      if (s.shakeY > 0.2) s.shakeY *= 0.78;
 
-        if (s.spinT === 108 && !s.presel) {
-          const pi = pitiedRoll(s.pityR, s.pityL);
-          let ball = s.balls.find(b => b.pi === pi);
-          if (!ball) { ball = s.balls[Math.floor(Math.random()*s.balls.length)]; ball.pi = pi; }
-          s.presel = { ball, pi };
-        }
-
-        if (s.spinT > 152 && s.presel) {
-          s.totalSpins++;
-          const pi   = s.presel.pi;
-          const tier = PRIZES[pi].tier;
-          s.pityR = tier >= 2 ? 0 : s.pityR + 1;
-          s.pityL = tier >= 3 ? 0 : s.pityL + 1;
-          s.history = [pi, ...s.history].slice(0, 8);
-          setSpins(s.totalSpins); setUiPityR(s.pityR); setUiPityL(s.pityL); setHist([...s.history]);
-          s.sel = s.presel.ball;
-          s.sel.x = GCX; s.sel.y = TUBE_TOP; s.sel.vx = 0; s.sel.vy = 0;
-          setPrize(PRIZES[pi]); s.presel = null;
-          syncP('dispensing');
-        }
+      // Spaghetti animation
+      if (ph === 'spaghetti') {
+        s.spagT++;
+        for (const l of s.spaghetti) { l.ey += 2; l.ex += (Math.random() - .5) * 1.5; l.life -= 0.016; }
+        s.spaghetti = s.spaghetti.filter(l => l.life > 0);
+        if (s.spagT > SPAG_FRAMES) syncP('gameover');
       }
 
-      // Dispensing
-      if (ph === 'dispensing' && s.sel) {
-        s.sel.x = GCX; s.sel.y += 4.5;
-        if (s.sel.y >= TUBE_BOT) {
-          s.sel.y = TUBE_BOT;
-          const tier = PRIZES[s.sel.pi].tier;
-          const pc   = PRIZES[s.sel.pi].color;
-          const pw   = 1 + tier * 0.6;
-          burst(GCX, TUBE_BOT, pc,    30 + tier * 18, pw);
-          burst(GCX, TUBE_BOT, '#fff', 10 + tier * 6,  pw * 0.7);
-          if (tier >= 2) {
-            burst(GCX, TUBE_BOT, pc, 20, pw * 1.2);
-            s.shake = tier === 3 ? 22 : 11;
-            s.flash = tier === 3 ? 1.0 : 0.7;
-            s.flashCol = pc;
-          }
-          syncP('reveal');
-        }
-      }
-
-      if (s.flash > 0) s.flash -= 0.022;
-      if (s.shake > 0) s.shake--;
-      for (const p of s.parts) { p.x += p.vx; p.y += p.vy; p.vy += 0.09; p.life -= 0.017; }
+      // Particles
+      for (const p of s.parts) { p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 0.04; }
       s.parts = s.parts.filter(p => p.life > 0);
-      s.scanX = (s.scanX + 1.4) % (GR * 2 + 80);
 
-      // ── DRAW ──
+      // ── Draw ───────────────────────────────────────────────────────────────
       ctx.save();
-      if (s.shake > 0) ctx.translate((Math.random()-.5)*s.shake*.5, (Math.random()-.5)*s.shake*.5);
+      const sx = s.shakeX > 0.2 ? (Math.random() - .5) * s.shakeX : 0;
+      const sy = s.shakeY > 0.2 ? (Math.random() - .5) * s.shakeY : 0;
+      ctx.translate(sx, sy);
 
-      ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, CW, CH);
-
-      // Grid
-      ctx.strokeStyle = 'rgba(0,229,204,0.03)'; ctx.lineWidth = 1;
-      for (let x = 0; x < CW; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
-      for (let y = 0; y < CH; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
-
-      // Tube
-      ctx.fillStyle = '#060b18'; ctx.strokeStyle = TEAL+'30'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.roundRect(GCX-13, TUBE_TOP, 26, TUBE_BOT-TUBE_TOP+BR+8, [0,0,6,6]); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = TEAL+'22'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(GCX-5, TUBE_TOP+4); ctx.lineTo(GCX-5, TUBE_BOT); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(GCX+5, TUBE_TOP+4); ctx.lineTo(GCX+5, TUBE_BOT); ctx.stroke();
-
-      // Globe fill
-      ctx.fillStyle = '#060c1a'; ctx.beginPath(); ctx.arc(GCX, GCY, GR, 0, Math.PI*2); ctx.fill();
-
-      // Globe interior (clipped)
-      ctx.save(); ctx.beginPath(); ctx.arc(GCX, GCY, GR-2, 0, Math.PI*2); ctx.clip();
-      drawHexGrid();
-
-      // Scan line
-      const sx = GCX - GR + s.scanX;
-      if (sx < GCX + GR) {
-        const sg = ctx.createLinearGradient(sx-18, 0, sx+18, 0);
-        sg.addColorStop(0, 'rgba(0,229,204,0)');
-        sg.addColorStop(0.5, 'rgba(0,229,204,0.09)');
-        sg.addColorStop(1, 'rgba(0,229,204,0)');
-        ctx.fillStyle = sg; ctx.fillRect(sx-18, GCY-GR, 36, GR*2);
-      }
-
-      for (const b of s.balls) {
-        if (b === s.sel) continue;
-        const isPresel = !!(s.presel && b === s.presel.ball);
-        const glow = isPresel ? 0.55 + 0.35 * Math.sin(s.t * 10) : 0;
-        drawBall(b.x, b.y, b.pi, glow);
-      }
-      ctx.restore(); // end globe clip
-
-      // Globe ring — pulses to winning color during near-miss
-      const ringC = nearEnd && s.presel ? PRIZES[s.presel.pi].color : TEAL;
-      const ringA = nearEnd ? 0.65 + 0.35 * Math.sin(s.t * 9) : 1;
-      ctx.strokeStyle = ringC; ctx.lineWidth = 2.8; ctx.globalAlpha = ringA;
-      ctx.beginPath(); ctx.arc(GCX, GCY, GR, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      // Glass highlights
-      ctx.strokeStyle = 'rgba(255,255,255,0.17)'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(GCX-42, GCY-50, 60, -0.7, 0.4); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(GCX-27, GCY-34, 28, -0.9, 0.15); ctx.stroke();
-
-      // Globe outer glow
-      const ogl = ctx.createRadialGradient(GCX, GCY, GR, GCX, GCY, GR+32);
-      ogl.addColorStop(0, ringC + '1e'); ogl.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = ogl; ctx.beginPath(); ctx.arc(GCX, GCY, GR+32, 0, Math.PI*2); ctx.fill();
-
-      // Bolts around globe
-      for (let i = 0; i < 8; i++) {
-        const ba = (i/8)*Math.PI*2;
-        const bx = GCX+(GR+7)*Math.cos(ba), by = GCY+(GR+7)*Math.sin(ba);
-        ctx.fillStyle = '#1a2540'; ctx.strokeStyle = TEAL+'70'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(bx, by, 3.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        // Cross mark inside bolt
-        ctx.strokeStyle = TEAL+'50'; ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(bx-1.5, by); ctx.lineTo(bx+1.5, by);
-        ctx.moveTo(bx, by-1.5); ctx.lineTo(bx, by+1.5); ctx.stroke();
-      }
-
-      // Stand
-      ctx.fillStyle = '#0e1628'; ctx.strokeStyle = '#1e2d4a'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.roundRect(GCX-14, GCY+GR-2, 28, TUBE_BOT-(GCY+GR)-10, 4); ctx.fill(); ctx.stroke();
-
-      // Base
-      ctx.fillStyle = '#111827'; ctx.strokeStyle = '#263048'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.roundRect(GCX-88, TUBE_BOT+BR+2, 176, 34, 10); ctx.fill(); ctx.stroke();
-      // Base accent stripe
-      const bGrad = ctx.createLinearGradient(GCX-88, 0, GCX+88, 0);
-      bGrad.addColorStop(0, TEAL+'00'); bGrad.addColorStop(0.5, TEAL+'55'); bGrad.addColorStop(1, TEAL+'00');
-      ctx.fillStyle = bGrad; ctx.fillRect(GCX-88, TUBE_BOT+BR+4, 176, 3);
-      // Label plate
-      ctx.fillStyle = '#0c1522'; ctx.strokeStyle = TEAL+'40'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.roundRect(GCX-44, TUBE_BOT+BR+9, 88, 20, 4); ctx.fill(); ctx.stroke();
-      ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = TEAL+'99';
-      ctx.fillText('PLAY3D  GACHA', GCX, TUBE_BOT+BR+22);
-
-      // Output glow
-      const selC = s.sel ? PRIZES[s.sel.pi].color : TEAL;
-      const og = ctx.createRadialGradient(GCX, TUBE_BOT, 0, GCX, TUBE_BOT, BR+16);
-      og.addColorStop(0, selC+'55'); og.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = og; ctx.beginPath(); ctx.arc(GCX, TUBE_BOT, BR+16, 0, Math.PI*2); ctx.fill();
-
-      // Dispensing / revealed ball
-      if (s.sel && (ph === 'dispensing' || ph === 'reveal')) {
-        const tier = PRIZES[s.sel.pi].tier;
-        const glow = ph === 'reveal' ? 0.65 + 0.35 * Math.sin(s.t * 6) : 0.25;
-        drawBall(s.sel.x, s.sel.y, s.sel.pi, glow);
-        if (ph === 'reveal') {
-          // Pulsing rings (more for higher tiers)
-          for (let r = 0; r <= tier; r++) {
-            const pulse = (s.t * 4 + r * 0.7) % 1;
-            ctx.strokeStyle = PRIZES[s.sel.pi].color;
-            ctx.lineWidth = 1.5 - pulse;
-            ctx.globalAlpha = (1 - pulse) * 0.5;
-            ctx.beginPath(); ctx.arc(s.sel.x, s.sel.y, BR + 6 + pulse * 22, 0, Math.PI*2); ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-        }
-      }
-
-      // Crank
-      const crX = GCX + GR + 20, crY = GCY;
-      ctx.save(); ctx.translate(crX, crY); ctx.rotate(s.crank);
-      ctx.strokeStyle = '#1a2540'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(0,-29); ctx.lineTo(0,29); ctx.moveTo(-29,0); ctx.lineTo(29,0); ctx.stroke();
-      ctx.strokeStyle = TEAL; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(0,-29); ctx.lineTo(0,29); ctx.moveTo(-29,0); ctx.lineTo(29,0); ctx.stroke();
-      ctx.fillStyle = nearEnd ? (s.presel ? PRIZES[s.presel.pi].color : TEAL) : TEAL;
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(29, 0, 8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#111827'; ctx.strokeStyle = TEAL; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.restore();
+      drawBg();
+      drawPlate();
+      drawLayers(s.layers);
+      if (ph === 'playing') drawTarget(s.targetX, s.targetW, s.t);
+      drawRail();
+      if (ph !== 'gameover') drawNozzle(s.x);
+      if (s.spaghetti.length > 0) drawSpaghetti(s.spaghetti);
 
       // Particles
       for (const p of s.parts) {
         ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.col;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
 
-      // Screen flash
-      if (s.flash > 0) {
-        ctx.fillStyle = s.flashCol + Math.round(Math.max(0, s.flash) * 55).toString(16).padStart(2,'0');
+      // Flash overlays
+      if (s.flashG > 0) { ctx.fillStyle = `rgba(0,255,100,${s.flashG * 0.15})`; ctx.fillRect(-10, -10, CW + 20, CH + 20); }
+      if (s.flashR > 0) { ctx.fillStyle = `rgba(255,30,40,${s.flashR * 0.22})`;  ctx.fillRect(-10, -10, CW + 20, CH + 20); }
+
+      // Dark dim during gameover
+      if (ph === 'gameover') {
+        ctx.fillStyle = 'rgba(5,10,20,0.55)';
         ctx.fillRect(0, 0, CW, CH);
       }
 
-      ctx.restore(); // end shake
-
+      ctx.restore();
       rafRef.current = requestAnimationFrame(tick);
     }
 
@@ -372,90 +439,225 @@ export default function BallMachine404() {
     return () => { alive = false; cancelAnimationFrame(rafRef.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pityLeft = PITY_R - uiPityR;
-  const legLeft  = PITY_L - uiPityL;
+  // ── Derived UI values ───────────────────────────────────────────────────────
+  const currentSpeed  = INIT_SPEED + score * SPEED_INC;
+  const targetPct     = Math.max(0, 1 - (INIT_TW - Math.max(MIN_TW, INIT_TW - score * TW_SHRINK)) / (INIT_TW - MIN_TW));
+  const isInTop10     = lb.length < 10 || score > (lb[lb.length - 1]?.score ?? 0);
+  const rankColors    = [GOLD, '#b0b8c8', '#cd7f32'];
 
   return (
     <>
       <SiteNav />
-      <main id="main-content" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 16px 24px' }}>
-
-        <div style={{ textAlign: 'center', marginBottom: 8, direction: 'rtl' }}>
-          <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(20px,4.5vw,34px)', fontWeight: 900, color: TEAL, textShadow: `0 0 22px ${TEAL}80`, lineHeight: 1 }}>404</div>
-          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>הדף לא נמצא • סובב ונסה את מזלך!</div>
+      <main
+        id="main-content"
+        dir="rtl"
+        className="min-h-screen flex flex-col items-center pt-20 pb-10 px-4"
+      >
+        {/* ── Header ── */}
+        <div className="text-center mb-4">
+          <h1
+            className="font-bold tracking-tight leading-none"
+            style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(22px,4.5vw,34px)', color: TEAL, textShadow: `0 0 24px ${TEAL}80` }}
+          >
+            השכבה המושלמת
+          </h1>
+          <p className="text-xs mt-1" style={{ color: 'var(--text2)' }}>
+            404 — הדף הלך לאיבוד בסלייסר
+          </p>
         </div>
 
-        <canvas
-          ref={canvasRef} width={CW} height={CH}
-          onClick={phase === 'idle' ? spin : undefined}
-          style={{ display: 'block', maxWidth: '100%', maxHeight: '57vh', borderRadius: 16, border: '1px solid var(--border)', cursor: phase === 'idle' ? 'pointer' : 'default' }}
-        />
+        {/* ── Game + Leaderboard layout ── */}
+        <div className="flex gap-5 items-start justify-center w-full flex-wrap" style={{ maxWidth: 840 }}>
 
-        {/* Prize legend */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', marginTop: 9, maxWidth: 400, direction: 'rtl' }}>
-          {PRIZES.map(p => (
-            <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: p.color, background: p.color+'18', border: `1px solid ${p.color}40`, borderRadius: 20, padding: '3px 9px' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, display: 'inline-block', flexShrink: 0 }} />
-              {p.label}
+          {/* ── Left: Game ── */}
+          <div style={{ flex: '1 1 560px', minWidth: 0 }}>
+
+            {/* Score bar */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: 'var(--text3)' }}>שכבות</span>
+                <span
+                  className="font-bold tabular-nums"
+                  style={{ fontFamily: 'var(--font-orbitron)', fontSize: 20, color: TEAL, minWidth: 36, textAlign: 'left' }}
+                >
+                  {score}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: 'var(--text3)' }}>מהירות</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(i => {
+                    const thr = (i / 5) * (MAX_SPEED - INIT_SPEED) + INIT_SPEED;
+                    const filled = currentSpeed >= thr;
+                    const barColor = i <= 2 ? TEAL : i <= 4 ? '#ffaa00' : RED;
+                    return (
+                      <div key={i} style={{ width: 10, height: 18, borderRadius: 3, background: filled ? barColor : 'var(--border)', transition: 'background 0.3s', boxShadow: filled ? `0 0 6px ${barColor}80` : 'none' }} />
+                    );
+                  })}
+                </div>
+                <span className="text-xs" style={{ color: 'var(--text3)' }}>אזור מטרה</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(i => {
+                    const filled = targetPct < (1 - (i - 1) / 5);
+                    return (
+                      <div key={i} style={{ width: 10, height: 18, borderRadius: 3, background: filled ? GREEN : 'var(--border)', boxShadow: filled ? `0 0 6px ${GREEN}60` : 'none' }} />
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
 
-        {/* Pity counters */}
-        {spins > 0 && (
-          <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11, direction: 'rtl', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {pityLeft > 0 && pityLeft <= 5 && (
-              <div style={{ color: PINK, background: PINK+'18', border: `1px solid ${PINK}40`, borderRadius: 20, padding: '3px 10px', fontWeight: 700 }}>
-                {pityLeft === 1 ? '🔥 הבא מובטח נדיר!' : `🔥 עוד ${pityLeft} לנדיר מובטח`}
-              </div>
-            )}
-            {legLeft > 0 && legLeft <= 15 && (
-              <div style={{ color: GOLD, background: GOLD+'18', border: `1px solid ${GOLD}40`, borderRadius: 20, padding: '3px 10px' }}>
-                {legLeft === 1 ? '⭐ הבא מובטח אגדי!!' : `⭐ עוד ${legLeft} לאגדי מובטח`}
-              </div>
-            )}
-            <div style={{ color: 'var(--text3)', borderRadius: 20, padding: '3px 10px', border: '1px solid var(--border)', fontSize: 10 }}>
-              סיבוב #{spins}
+            {/* Canvas + overlays */}
+            <div className="relative" style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <canvas
+                ref={canvasRef}
+                width={CW} height={CH}
+                onClick={action}
+                className="block w-full"
+                style={{ maxHeight: '56vh', cursor: phase === 'playing' ? 'crosshair' : 'pointer' }}
+              />
+
+              {/* INTRO overlay */}
+              {phase === 'intro' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: 'rgba(5,10,20,0.88)' }}>
+                  <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(18px,4vw,28px)', color: TEAL, textShadow: `0 0 20px ${TEAL}` }}>
+                    השכבה המושלמת
+                  </div>
+                  <div className="text-sm text-center px-6 leading-relaxed" style={{ color: 'var(--text2)', maxWidth: 340 }}>
+                    לחץ <kbd className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)' }}>רווח</kbd> או לחץ כשהנוזל מעל האזור הירוק
+                  </div>
+                  <div className="text-xs text-center" style={{ color: 'var(--text3)' }}>
+                    מהירות עולה עם כל שכבה • אזור המטרה מצטמצם • טעות = ספגטי 🍝
+                  </div>
+                  <button onClick={startGame} className="btn-hero mt-2" style={{ fontSize: 14, padding: '10px 36px' }}>
+                    התחל הדפסה
+                  </button>
+                </div>
+              )}
+
+              {/* SPAGHETTI banner (brief) */}
+              {phase === 'spaghetti' && (
+                <div className="absolute inset-x-0 top-1/3 flex justify-center pointer-events-none">
+                  <div
+                    className="px-6 py-3 rounded-xl font-bold text-2xl"
+                    style={{ background: 'rgba(5,10,20,0.80)', color: RED, fontFamily: 'var(--font-orbitron)', border: `1px solid ${RED}60`, textShadow: `0 0 16px ${RED}` }}
+                  >
+                    🍝 ספגטי!
+                  </div>
+                </div>
+              )}
+
+              {/* GAME OVER overlay */}
+              {phase === 'gameover' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6" style={{ background: 'rgba(5,10,20,0.90)' }}>
+                  <div className="text-sm font-bold" style={{ color: RED }}>🍝 ספגטי — ההדפסה נכשלה</div>
+                  <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(36px,8vw,56px)', fontWeight: 900, color: TEAL, textShadow: `0 0 28px ${TEAL}90`, lineHeight: 1 }}>
+                    {score}
+                  </div>
+                  <div className="text-sm" style={{ color: 'var(--text2)' }}>
+                    {score === 0 ? 'אפס שכבות…' : score === 1 ? 'שכבה אחת הודפסה' : `${score} שכבות הודפסו בהצלחה`}
+                  </div>
+
+                  {score >= 1 && !sent && (
+                    <div className="flex flex-col items-center gap-2 w-full" style={{ maxWidth: 270 }}>
+                      {isInTop10 && <div className="text-xs" style={{ color: GREEN }}>⭐ הציון שלך מספיק לטופ 10!</div>}
+                      <input
+                        type="text"
+                        maxLength={20}
+                        placeholder="שם לשמירת ציון"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') submit(); e.stopPropagation(); }}
+                        className="w-full text-center text-sm rounded-lg px-3 py-2 outline-none"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text1)', direction: 'rtl' }}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={submit}
+                          disabled={!name.trim() || subbing}
+                          className="btn-hero text-sm px-5 py-2"
+                        >
+                          {subbing ? '...' : 'שמור ציון'}
+                        </button>
+                        <button onClick={startGame} className="btn-ghost text-sm px-4 py-2">
+                          שוב <span className="opacity-50 text-xs">[רווח]</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(score === 0 || sent) && (
+                    <div className="flex flex-col items-center gap-2">
+                      {sent && <div className="text-xs" style={{ color: GREEN }}>✓ הציון נשמר!</div>}
+                      <button onClick={startGame} className="btn-hero text-sm px-8 py-2.5">
+                        נסה שוב <span className="opacity-50 text-xs">[רווח]</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Hint bar */}
+            <div className="text-center mt-2 text-xs" style={{ color: 'var(--text3)' }}>
+              לחץ <strong>רווח</strong> או לחץ כשהנוזל מעל האזור הירוק ← שכבה מושלמת
             </div>
           </div>
-        )}
 
-        {/* History row */}
-        {hist.length > 0 && (
-          <div style={{ display: 'flex', gap: 5, marginTop: 7, alignItems: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 4, direction: 'rtl' }}>היסטוריה:</span>
-            {hist.map((pi, i) => (
-              <div key={i} title={PRIZES[pi].label} style={{ width: 16, height: 16, borderRadius: '50%', background: PRIZES[pi].color, boxShadow: `0 0 6px ${PRIZES[pi].color}80`, flexShrink: 0, opacity: 1 - i * 0.09 }} />
-            ))}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minHeight: 80 }}>
-          {phase === 'idle' && (
-            <>
-              <button onClick={spin} className="btn-hero" style={{ fontSize: 14, padding: '11px 40px' }}>🎰 סובב!</button>
-              <Link href="/" style={{ color: 'var(--text3)', fontSize: 12, textDecoration: 'none' }}>← חזרה לדף הבית</Link>
-            </>
-          )}
-
-          {phase === 'spinning' && (
-            <div style={{ fontSize: 13, color: TEAL }}>✨ מסובב...</div>
-          )}
-
-          {phase === 'reveal' && prize && (
-            <div style={{ textAlign: 'center', direction: 'rtl' }}>
-              <div style={{ fontSize: 11, color: prize.color, fontWeight: 700, marginBottom: 2 }}>{prize.rarity}</div>
-              <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 'clamp(18px,4.5vw,30px)', fontWeight: 900, color: prize.color, textShadow: `0 0 20px ${prize.color}`, marginBottom: 3 }}>
-                {prize.label}
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 14 }}>{prize.desc}</div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                <button onClick={again} className="btn-hero" style={{ fontSize: 13, padding: '10px 26px' }}>🎰 שוב!</button>
-                <Link href="/" className="btn-ghost" style={{ display: 'inline-block', fontSize: 13, padding: '10px 20px' }}>דף הבית</Link>
-              </div>
+          {/* ── Right: Leaderboard ── */}
+          <div style={{ flex: '0 0 210px', minWidth: 170 }}>
+            <div
+              className="text-center text-sm font-bold mb-3 pb-2"
+              style={{ fontFamily: 'var(--font-orbitron)', color: TEAL, borderBottom: '1px solid var(--border)' }}
+            >
+              לוח תוצאות
             </div>
-          )}
+
+            <div className="flex flex-col gap-1.5">
+              {lb.length === 0 ? (
+                <div className="text-center text-xs py-4" style={{ color: 'var(--text3)' }}>
+                  עדיין אין שחקנים&nbsp;🖨️
+                </div>
+              ) : lb.map((e, i) => (
+                <div
+                  key={e.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{
+                    background: e.id === myId ? TEAL + '18' : 'var(--card-bg)',
+                    border: `1px solid ${e.id === myId ? TEAL + '55' : 'var(--border)'}`,
+                    direction: 'rtl',
+                  }}
+                >
+                  <span
+                    className="text-xs font-bold tabular-nums"
+                    style={{ width: 18, textAlign: 'center', color: rankColors[i] ?? 'var(--text3)', flexShrink: 0 }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span
+                    className="flex-1 text-sm truncate"
+                    style={{ color: e.id === myId ? TEAL : 'var(--text1)' }}
+                  >
+                    {e.name}
+                  </span>
+                  <span
+                    className="text-sm font-bold tabular-nums"
+                    style={{ fontFamily: 'var(--font-orbitron)', color: e.id === myId ? TEAL : 'var(--text2)', flexShrink: 0 }}
+                  >
+                    {e.score}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <Link
+              href="/"
+              className="block text-center text-xs mt-4"
+              style={{ color: 'var(--text3)', textDecoration: 'none' }}
+            >
+              ← חזרה לדף הבית
+            </Link>
+          </div>
         </div>
       </main>
     </>
