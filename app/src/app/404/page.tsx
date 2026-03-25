@@ -743,15 +743,6 @@ export default function FilamentFeed() {
         </div>
       </main>
 
-      <style>{`
-        .ff-food {
-          animation: ff-pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes ff-pulse {
-          0%, 100% { filter: drop-shadow(0 0 5px rgba(251,146,60,1)) drop-shadow(0 0 12px rgba(251,146,60,0.5)); }
-          50%       { filter: drop-shadow(0 0 9px rgba(251,146,60,1)) drop-shadow(0 0 22px rgba(251,146,60,0.7)) brightness(1.2); }
-        }
-      `}</style>
     </>
   );
 }
