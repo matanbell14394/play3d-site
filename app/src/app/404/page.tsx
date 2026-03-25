@@ -582,7 +582,7 @@ export default function FilamentFeed() {
               {phase !== 'playing' && (
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-sm"
-                  style={{ background: 'rgba(5,7,9,0.9)', backdropFilter: 'blur(2px)' }}
+                  style={{ background: 'rgba(5,7,9,0.9)', backdropFilter: 'blur(2px)', zIndex: 50 }}
                 >
                   {phase === 'idle' ? (
                     <>
