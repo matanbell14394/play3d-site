@@ -252,6 +252,26 @@ export default function FilamentFeed() {
     bump();
   }, [bump]);
 
+  // ── D-pad direction handler ────────────────────────────────────────────────
+  const handleDir = useCallback((d: Dir) => {
+    const s = gs.current;
+    if (s.phase !== 'playing') { startGame(); return; }
+    const opp: Record<Dir, Dir> = { U: 'D', D: 'U', L: 'R', R: 'L' };
+    if (d !== opp[s.dir]) s.nextDir = d;
+  }, [startGame]);
+
+  // ── Grid scale for small screens ──────────────────────────────────────────
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => {
+      const avail = window.innerWidth - 32; // account for px-4
+      setScale(avail < COLS * CELL ? avail / (COLS * CELL) : 1);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   // ── Keyboard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -448,15 +468,29 @@ export default function FilamentFeed() {
 
           {/* ─── Game grid ─────────────────────────────────────────────────── */}
           <div className="flex flex-col items-center gap-2 flex-shrink-0">
-            <div className="flex items-center justify-between w-full px-0.5">
+
+            {/* Mobile score bar */}
+            <div className="lg:hidden flex items-center justify-between w-full mb-1">
+              <span className="font-mono text-[14px]" style={{ color: '#22d3ee', textShadow: '0 0 8px rgba(34,211,238,0.5)' }}>
+                SCORE: {score}
+              </span>
+              {best > 0 && (
+                <span className="font-mono text-[13px]" style={{ color: '#60a5fa' }}>BEST: {best}</span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-0.5" style={{ width: COLS * CELL * scale }}>
               <span className="font-mono text-[8px] tracking-[0.3em]" style={{ color: '#0e1a2e' }}>404</span>
               <span className="font-mono text-[8px] tracking-[0.2em]" style={{ color: '#0e1a2e' }}>
                 FILAMENT FEED — SNAKE × TETRIS
               </span>
             </div>
 
+            {/* Scale wrapper */}
+            <div style={{ width: COLS * CELL * scale, height: ROWS * CELL * scale, flexShrink: 0 }}>
+            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
             <div
-              className="relative rounded-sm flex-shrink-0"
+              className="relative rounded-sm"
               style={{
                 width:  COLS * CELL,
                 height: ROWS * CELL,
@@ -683,10 +717,36 @@ export default function FilamentFeed() {
                 </div>
               )}
             </div>
+            </div>{/* end scale transform */}
+            </div>{/* end scale wrapper */}
 
-            {/* Mobile d-pad hint */}
-            <div className="lg:hidden font-mono text-[9px] tracking-[0.2em]" style={{ color: '#0e1e30' }}>
-              גע והחלק לנוע
+            {/* D-pad — mobile only */}
+            <div
+              className="lg:hidden flex flex-col items-center gap-2 mt-3 select-none"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Up */}
+              <button
+                onPointerDown={e => { e.preventDefault(); handleDir('U'); }}
+                style={{ width: 60, height: 60, background: '#08090f', border: '1px solid rgba(34,211,238,0.3)', borderRadius: 10, color: '#22d3ee', fontSize: 24, cursor: 'pointer', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              >↑</button>
+              {/* Middle row */}
+              <div className="flex gap-2">
+                <button
+                  onPointerDown={e => { e.preventDefault(); handleDir('L'); }}
+                  style={{ width: 60, height: 60, background: '#08090f', border: '1px solid rgba(34,211,238,0.3)', borderRadius: 10, color: '#22d3ee', fontSize: 24, cursor: 'pointer', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                >←</button>
+                <div style={{ width: 60, height: 60, background: 'rgba(34,211,238,0.04)', borderRadius: 10, border: '1px solid rgba(34,211,238,0.08)' }} />
+                <button
+                  onPointerDown={e => { e.preventDefault(); handleDir('R'); }}
+                  style={{ width: 60, height: 60, background: '#08090f', border: '1px solid rgba(34,211,238,0.3)', borderRadius: 10, color: '#22d3ee', fontSize: 24, cursor: 'pointer', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                >→</button>
+              </div>
+              {/* Down */}
+              <button
+                onPointerDown={e => { e.preventDefault(); handleDir('D'); }}
+                style={{ width: 60, height: 60, background: '#08090f', border: '1px solid rgba(34,211,238,0.3)', borderRadius: 10, color: '#22d3ee', fontSize: 24, cursor: 'pointer', touchAction: 'none', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              >↓</button>
             </div>
           </div>
 
