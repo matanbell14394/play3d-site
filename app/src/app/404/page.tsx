@@ -376,28 +376,25 @@ export default function FilamentFeed() {
         <div className="flex gap-5 items-start">
 
           {/* ─── Left panel ────────────────────────────────────────────────── */}
-          <div className="hidden lg:flex flex-col gap-4 w-[130px] flex-shrink-0 select-none">
+          <div className="hidden lg:flex flex-col gap-4 w-[155px] flex-shrink-0 select-none">
 
             {/* LED display */}
             <div
-              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-1"
+              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-1.5"
               style={{ background: '#08090f', boxShadow: 'inset 0 1px 16px rgba(0,0,0,0.8)' }}
             >
-              <div className="font-mono text-[7px] tracking-[0.22em]" style={{ color: '#0c1f30' }}>
-                PLAY3D SNAKE/TETRIS
+              <div className="font-mono text-[10px] tracking-[0.18em]" style={{ color: '#1a4060' }}>
+                FILAMENT FEED
               </div>
-              <div className="font-mono text-[7px] tracking-[0.22em] mb-2" style={{ color: '#0c1f30' }}>
-                FILAMENT FEED v1.0
-              </div>
-              <div className="font-mono text-[11px] tracking-wider">
-                <span style={{ color: '#0a3a60' }}>SCORE: </span>
+              <div className="font-mono text-[14px] tracking-wider mt-1">
+                <span style={{ color: '#2a6090' }}>SCORE: </span>
                 <span style={{ color: '#22d3ee', textShadow: '0 0 8px rgba(34,211,238,0.6)' }}>
                   {score.toLocaleString()}
                 </span>
               </div>
               {best > 0 && (
-                <div className="font-mono text-[10px] tracking-wider">
-                  <span style={{ color: '#082540' }}>BEST:  </span>
+                <div className="font-mono text-[12px] tracking-wider">
+                  <span style={{ color: '#1a3a55' }}>BEST:  </span>
                   <span style={{ color: '#60a5fa' }}>{best.toLocaleString()}</span>
                 </div>
               )}
@@ -405,24 +402,24 @@ export default function FilamentFeed() {
 
             {/* Printer status */}
             <div
-              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-0.5"
+              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-1"
               style={{ background: '#08090f', boxShadow: 'inset 0 1px 16px rgba(0,0,0,0.8)' }}
             >
-              <div className="font-mono text-[7px] tracking-[0.2em] mb-1.5" style={{ color: '#1a1005' }}>
+              <div className="font-mono text-[10px] tracking-[0.18em] mb-1" style={{ color: '#2a1a05' }}>
                 PRINTER STATUS
               </div>
-              <div className="font-mono text-[9px] tracking-wider" style={{ color: '#fb923c' }}>
+              <div className="font-mono text-[12px] tracking-wider" style={{ color: '#fb923c' }}>
                 TEMP: 215°C
               </div>
-              <div className="font-mono text-[9px] tracking-wider" style={{ color: '#fb923c' }}>
+              <div className="font-mono text-[12px] tracking-wider" style={{ color: '#fb923c' }}>
                 BED:  60°C
               </div>
               <div
-                className="font-mono text-[8px] tracking-wider mt-1.5"
+                className="font-mono text-[11px] tracking-wider mt-1.5"
                 style={{
                   color: phase === 'playing' ? '#4ade80'
                     : phase === 'dead'    ? '#f87171'
-                    : '#1a3a20',
+                    : '#2a5030',
                   textShadow: phase === 'playing' ? '0 0 6px rgba(74,222,128,0.5)' : 'none',
                 }}
               >
@@ -432,18 +429,18 @@ export default function FilamentFeed() {
               </div>
             </div>
 
-            {/* Legend */}
+            {/* Controls */}
             <div
-              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-1"
+              className="rounded-sm border border-[#111828] p-3 flex flex-col gap-1.5"
               style={{ background: '#08090f', boxShadow: 'inset 0 1px 16px rgba(0,0,0,0.8)' }}
             >
-              <div className="font-mono text-[7px] tracking-[0.2em] mb-1" style={{ color: '#0c1f30' }}>
+              <div className="font-mono text-[10px] tracking-[0.18em] mb-0.5" style={{ color: '#1a3a5a' }}>
                 CONTROLS
               </div>
               {[['↑↓←→', 'לנוע'], ['WASD', 'חלופי'], ['SPACE', 'התחל']].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[8px]" style={{ color: '#1e3a5a' }}>{k}</span>
-                  <span className="font-mono text-[8px]" style={{ color: '#0e2030' }}>{v}</span>
+                  <span className="font-mono text-[11px]" style={{ color: '#3a6a8a' }}>{k}</span>
+                  <span className="font-mono text-[11px]" style={{ color: '#2a4a60' }}>{v}</span>
                 </div>
               ))}
             </div>
@@ -595,7 +592,7 @@ export default function FilamentFeed() {
                       >
                         FILAMENT FEED
                       </div>
-                      <div className="font-mono text-[9px] tracking-[0.3em]" style={{ color: '#1e3a4a' }}>
+                      <div className="font-mono text-[12px] tracking-[0.3em]" style={{ color: '#2a6080' }}>
                         SNAKE × TETRIS
                       </div>
                       <div className="flex gap-4 mt-2">
@@ -611,14 +608,14 @@ export default function FilamentFeed() {
                           />
                         ))}
                       </div>
-                      <div className="mt-3 font-mono text-[9px] tracking-[0.2em]" style={{ color: '#1e3050' }}>
+                      <div className="mt-3 font-mono text-[12px] tracking-[0.15em]" style={{ color: '#3a6a8a' }}>
                         SPACE · ENTER · לחץ להתחיל
                       </div>
                     </>
                   ) : (
                     <>
                       <div
-                        className="font-mono text-[10px] tracking-[0.45em]"
+                        className="font-mono text-[13px] tracking-[0.4em]"
                         style={{ color: '#f87171', textShadow: '0 0 8px rgba(248,113,113,0.5)' }}
                       >
                         PRINT FAILED
@@ -629,7 +626,7 @@ export default function FilamentFeed() {
                       >
                         {score}
                       </div>
-                      <div className="font-mono text-[9px] tracking-[0.2em]" style={{ color: '#1e3050' }}>
+                      <div className="font-mono text-[12px] tracking-[0.2em]" style={{ color: '#3a5878' }}>
                         שכבות הודפסו
                       </div>
 
@@ -678,7 +675,7 @@ export default function FilamentFeed() {
                           ✓ נשמר
                         </p>
                       )}
-                      <div className="font-mono text-[9px] mt-2" style={{ color: '#0e1e30' }}>
+                      <div className="font-mono text-[12px] mt-2" style={{ color: '#2a4a6a' }}>
                         לחץ לשחק שוב
                       </div>
                     </>
@@ -695,7 +692,7 @@ export default function FilamentFeed() {
 
           {/* ─── Leaderboard ───────────────────────────────────────────────── */}
           <div
-            className="hidden lg:flex flex-col gap-0 w-[130px] flex-shrink-0"
+            className="hidden lg:flex flex-col gap-0 w-[155px] flex-shrink-0"
             onClick={e => e.stopPropagation()}
           >
             <div
@@ -703,37 +700,37 @@ export default function FilamentFeed() {
               style={{ background: '#08090f', boxShadow: 'inset 0 1px 16px rgba(0,0,0,0.8)' }}
             >
               <div
-                className="font-mono text-[7px] tracking-[0.28em] mb-2 pb-1.5"
-                style={{ color: '#0c1f30', borderBottom: '1px solid #0e1828' }}
+                className="font-mono text-[11px] tracking-[0.22em] mb-2 pb-1.5"
+                style={{ color: '#2a4a6a', borderBottom: '1px solid #111828' }}
               >
                 LEADERBOARD
               </div>
               {lb.length === 0 ? (
-                <div className="font-mono text-[10px] text-center py-4" style={{ color: '#0e1828' }}>—</div>
+                <div className="font-mono text-[12px] text-center py-4" style={{ color: '#1e3050' }}>—</div>
               ) : lb.map((e, i) => (
                 <div
                   key={e.id}
                   className="flex items-center gap-1.5 py-1"
-                  style={{ color: e.id === myId ? '#4ade80' : '#2a4060' }}
+                  style={{ color: e.id === myId ? '#4ade80' : '#3a5878' }}
                 >
                   <span
-                    className={`w-3.5 text-right font-mono text-[10px] flex-shrink-0 ${rankCol[i] ?? ''}`}
-                    style={!rankCol[i] ? { color: '#0e1828' } : {}}
+                    className={`w-4 text-right font-mono text-[11px] flex-shrink-0 ${rankCol[i] ?? ''}`}
+                    style={!rankCol[i] ? { color: '#1e3050' } : {}}
                   >
                     {i + 1}
                   </span>
-                  <span className="flex-1 font-mono text-[10px] truncate">{e.name}</span>
-                  <span className="font-mono text-[10px] tabular-nums flex-shrink-0">{e.score}</span>
+                  <span className="flex-1 font-mono text-[11px] truncate">{e.name}</span>
+                  <span className="font-mono text-[11px] tabular-nums flex-shrink-0">{e.score}</span>
                 </div>
               ))}
             </div>
 
             <Link
               href="/"
-              className="mt-4 font-mono text-[9px] transition-colors"
-              style={{ color: '#0e1828' }}
+              className="mt-4 font-mono text-[11px] transition-colors"
+              style={{ color: '#1e3050' }}
               onMouseEnter={e => { e.currentTarget.style.color = '#3a6a8a'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#0e1828'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#1e3050'; }}
               onClick={e => e.stopPropagation()}
             >
               ← בית
