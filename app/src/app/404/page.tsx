@@ -725,6 +725,7 @@ export default function FilamentFeed() {
 
             {/* D-pad — mobile only */}
             <div
+              dir="ltr"
               className="lg:hidden flex flex-col items-center gap-2 mt-3 select-none"
               onClick={e => e.stopPropagation()}
             >
