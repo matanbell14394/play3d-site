@@ -74,9 +74,12 @@ async function fetchLB(): Promise<LBEntry[]> {
 }
 async function postLB(name: string, score: number): Promise<LBEntry | null> {
   try {
+    const tr = await fetch('/api/leaderboard/token');
+    if (!tr.ok) return null;
+    const { token } = await tr.json() as { token: string };
     const r = await fetch('/api/leaderboard', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, score }),
+      body: JSON.stringify({ name, score, token }),
     });
     return r.ok ? r.json() : null;
   } catch { return null; }
