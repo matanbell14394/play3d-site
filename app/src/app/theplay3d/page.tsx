@@ -45,13 +45,32 @@ function fits(board:Cell[][][], p:Piece): boolean {
   return true;
 }
 function lock(board:Cell[][][], p:Piece){ for(const [dx,dz] of p.shape) board[p.y][p.x+dx][p.z+dz]=p.ci; }
-function clearFull(board:Cell[][][]): number {
-  let cleared=0;
-  for(let y=board.length-1;y>=0;y--){
-    if(board[y].every(r=>r.every(c=>c!==null))){
-      board.splice(y,1);
-      board.push(Array.from({length:GW},()=>Array(GD).fill(null)));
-      cleared++;
+function clearLines(board:Cell[][][]): number {
+  let cleared=0, changed=true;
+  while(changed){
+    changed=false;
+    outer:
+    for(let y=0;y<board.length;y++){
+      // rows along X (for each Z)
+      for(let z=0;z<GD;z++){
+        if(board[y].every(xRow=>xRow[z]!==null)){
+          for(let x=0;x<GW;x++){
+            for(let ny=y;ny<board.length-1;ny++) board[ny][x][z]=board[ny+1][x][z];
+            board[board.length-1][x][z]=null;
+          }
+          cleared++; changed=true; break outer;
+        }
+      }
+      // columns along Z (for each X)
+      for(let x=0;x<GW;x++){
+        if(board[y][x].every(c=>c!==null)){
+          for(let z=0;z<GD;z++){
+            for(let ny=y;ny<board.length-1;ny++) board[ny][x][z]=board[ny+1][x][z];
+            board[board.length-1][x][z]=null;
+          }
+          cleared++; changed=true; break outer;
+        }
+      }
     }
   }
   return cleared;
@@ -236,7 +255,7 @@ export default function ThePlay3DPage() {
       if(!piece) return;
       lock(board,piece);
       piece=null;
-      const cleared=clearFull(board);
+      const cleared=clearLines(board);
       if(cleared>0){
         lChk+=cleared;
         lScore+=cleared===1?100:cleared===2?300:cleared===3?500:800;
