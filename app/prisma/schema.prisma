@@ -295,6 +295,16 @@ model LeaderboardEntry {
   @@index([score(sort: Desc)])
 }
 
+model Play3dEntry {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(20)
+  score      Int
+  checkpoint Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([score(sort: Desc)])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   action    String
