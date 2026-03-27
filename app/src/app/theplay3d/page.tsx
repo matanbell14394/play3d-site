@@ -99,7 +99,7 @@ function spawnPos(shape:[number,number][]): {x:number;z:number} {
   const mxZ=Math.max(...shape.map(([,z])=>z));
   return {x:Math.floor((GW-mxX-1)/2),z:Math.floor((GD-mxZ-1)/2)};
 }
-function dropInterval(level:number){ return Math.max(600,2400-level*90); }
+function dropInterval(level:number){ return Math.max(200,1800-(level-1)*150); }
 
 // ─── Web Audio music ──────────────────────────────────────────────────────────
 function startMusic(ctx:AudioContext): ()=>void {
@@ -150,6 +150,7 @@ export default function ThePlay3DPage() {
   const [pname,setPname]     = useState('');
   const [submitting,setSub]  = useState(false);
   const [isTouch,setIsTouch] = useState(false);
+  const [stageMsg,setStageMsg] = useState('');
 
   const phaseRef   = useRef<'idle'|'playing'|'dead'>('idle');
   const scoreRef   = useRef(0);
@@ -373,7 +374,9 @@ export default function ThePlay3DPage() {
       if(cleared>0){
         lChk+=cleared;
         lScore+=cleared===1?150:cleared===2?400:cleared===3?750:1200;
-        lLevel=Math.floor(lChk/4)+1;
+        const prevLevel=lLevel;
+        lLevel=Math.floor(lChk/3)+1;
+        if(lLevel>prevLevel){ setStageMsg(`STAGE ${lLevel}`); setTimeout(()=>setStageMsg(''),1800); }
         const snap=mkBoard();
         board.forEach((layer,y)=>layer.forEach((row,x)=>row.forEach((c,z)=>{snap[y][x][z]=c;})));
         board=snap;
@@ -412,7 +415,7 @@ export default function ThePlay3DPage() {
       board=mkBoard();piece=null;lScore=0;lLevel=1;lChk=0;lPhase='playing';
       nSi=Math.floor(Math.random()*SHAPE_COUNT);nCi=nSi;dropAcc=0;
       boardGroup.clear();pieceGroup.clear();ghostGroup.clear();
-      setShowSub(false);setHasSaved(false);setPaused(false);pausedRef.current=false;
+      setShowSub(false);setHasSaved(false);setPaused(false);pausedRef.current=false;setStageMsg('');
       // Start music
       musicStop.current?.();
       try{
@@ -561,7 +564,7 @@ export default function ThePlay3DPage() {
       <div style={{position:'absolute',top:0,left:0,right:0,zIndex:10,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 16px',background:panelBg,backdropFilter:'blur(12px)',borderBottom:panelBorder}}>
         <span style={{fontWeight:900,fontSize:16,color:'#bb88ff',letterSpacing:2}}>▶ PLAY3D</span>
         <div style={{display:'flex',gap:20}}>
-          {[['ניקוד',score],['שלב',level],['שורות',chk]].map(([l,v])=>(
+          {[['ניקוד',score],['STAGE',level],['שורות',chk]].map(([l,v])=>(
             <div key={l as string} style={{textAlign:'center'}}>
               <div style={{fontSize:9,color:'#8855cc',fontWeight:700,letterSpacing:1}}>{l}</div>
               <div style={{fontSize:20,fontWeight:900,color:'#ddaaff',lineHeight:1}}>{v as number}</div>
@@ -653,6 +656,17 @@ export default function ThePlay3DPage() {
           </div>
         </div>
       )}
+
+      {/* Stage-up flash */}
+      {stageMsg && (
+        <div style={{position:'absolute',inset:0,zIndex:15,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+          <div style={{textAlign:'center',animation:'stagePop 1.8s ease-out forwards'}}>
+            <div style={{fontSize:13,fontWeight:700,color:'#cc88ff',letterSpacing:4,marginBottom:4}}>LEVEL UP!</div>
+            <div style={{fontSize:64,fontWeight:900,color:'#ffffff',letterSpacing:6,textShadow:'0 0 40px #aa44ff, 0 0 80px #6622cc'}}>{stageMsg}</div>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes stagePop{0%{opacity:0;transform:scale(0.6)}20%{opacity:1;transform:scale(1.08)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}`}</style>
 
       {/* Dead / submit */}
       {phase==='dead' && !showSub && (
