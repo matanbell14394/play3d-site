@@ -284,7 +284,11 @@ export default function ThePlay3DPage() {
         const mat=(c as THREE.Mesh).material as THREE.MeshStandardMaterial;
         mat.color.set(0xffffff);mat.emissive.set(0xffffff);mat.emissiveIntensity=1;
       });
-      setTimeout(()=>{flashRef.current=false;cb();},420);
+      setTimeout(()=>{
+        // Reset shared materials back to original gemstone colors before rebuild
+        PC.forEach((c,i)=>{ cellMats[i].color.set(c); cellMats[i].emissive.set(c); cellMats[i].emissiveIntensity=0.25; });
+        flashRef.current=false; cb();
+      },420);
     }
     function spawnPiece(): boolean {
       const si=nSi,ci=nCi;
@@ -391,10 +395,11 @@ export default function ThePlay3DPage() {
     // ── Keyboard ──
     const onKey=(e:KeyboardEvent)=>{
       if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+      if(e.key==='Control'||e.key==='Alt') e.preventDefault();
       if(phaseRef.current!=='playing'){
         if(e.key===' '||e.key==='Enter') startGame(); return;
       }
-      if(e.key==='r'||e.key==='R') rotatePiece();
+      if(e.key==='r'||e.key==='R'||e.key==='Control'||e.key==='Alt') rotatePiece();
       else if(e.key===' ') hardDrop();
       else if(['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','a','d','w','s'].includes(e.key)){
         const k=e.key==='a'?'ArrowLeft':e.key==='d'?'ArrowRight':e.key==='w'?'ArrowUp':e.key==='s'?'ArrowDown':e.key;
@@ -403,7 +408,7 @@ export default function ThePlay3DPage() {
     };
     // ── Mouse orbit ──
     const onMD=(e:MouseEvent)=>{if(e.target!==renderer.domElement)return;isDrag=true;lmx=e.clientX;lmy=e.clientY;};
-    const onMM=(e:MouseEvent)=>{if(!isDrag)return;theta+=(e.clientX-lmx)*0.007;phi+=(e.clientY-lmy)*0.005;phi=Math.max(0.1,Math.min(1.5,phi));lmx=e.clientX;lmy=e.clientY;};
+    const onMM=(e:MouseEvent)=>{if(!isDrag)return;theta-=(e.clientX-lmx)*0.007;phi-=(e.clientY-lmy)*0.005;phi=Math.max(0.1,Math.min(1.5,phi));lmx=e.clientX;lmy=e.clientY;};
     const onMU=()=>{isDrag=false;};
     const onWhl=(e:WheelEvent)=>{radius=Math.max(10,Math.min(30,radius+e.deltaY*0.012));};
     // ── Touch orbit (2-finger = orbit, single = game) ──
