@@ -14,17 +14,24 @@ const PC: readonly number[] = [
   0xb5630a, // topaz
   0x2d6b7b, // aquamarine
   0x5a1a8b, // alexandrite
+  0xb8860b, // gold (single)
+  0xb5145a, // rose (pair)
+  0x1a6b6b, // teal (3×3)
 ] as const;
-const PC_CSS = ['#9b3dbb','#2a5abf','#2a9b5a','#bf2a3d','#d4770a','#3d9bbb','#7a2dbb'];
+const PC_CSS = ['#9b3dbb','#2a5abf','#2a9b5a','#bf2a3d','#d4770a','#3d9bbb','#7a2dbb','#d4a010','#d41870','#1a9b9b'];
+const SHAPE_COUNT = 10;
 
 const SHAPES: [number,number][][] = [
-  [[0,0],[1,0],[2,0],[3,0]],
-  [[0,0],[1,0],[0,1],[1,1]],
-  [[0,0],[1,0],[2,0],[1,1]],
-  [[1,0],[2,0],[0,1],[1,1]],
-  [[0,0],[1,0],[1,1],[2,1]],
-  [[0,0],[0,1],[1,1],[2,1]],
-  [[2,0],[0,1],[1,1],[2,1]],
+  [[0,0],[1,0],[2,0],[3,0]],           // I
+  [[0,0],[1,0],[0,1],[1,1]],           // O
+  [[0,0],[1,0],[2,0],[1,1]],           // T
+  [[1,0],[2,0],[0,1],[1,1]],           // S
+  [[0,0],[1,0],[1,1],[2,1]],           // Z
+  [[0,0],[0,1],[1,1],[2,1]],           // J
+  [[2,0],[0,1],[1,1],[2,1]],           // L
+  [[0,0]],                             // single cube
+  [[0,0],[1,0]],                       // pair
+  [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]], // 3×3
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -254,7 +261,7 @@ export default function ThePlay3DPage() {
     let board=mkBoard();
     let piece:Piece|null=null;
     let lScore=0,lLevel=1,lChk=0,lPhase:'idle'|'playing'|'dead'='idle';
-    let nSi=Math.floor(Math.random()*7),nCi=nSi;
+    let nSi=Math.floor(Math.random()*SHAPE_COUNT),nCi=nSi;
     let dropAcc=0;
 
     function pushUI(){
@@ -292,7 +299,7 @@ export default function ThePlay3DPage() {
     }
     function spawnPiece(): boolean {
       const si=nSi,ci=nCi;
-      nSi=Math.floor(Math.random()*7);nCi=nSi;
+      nSi=Math.floor(Math.random()*SHAPE_COUNT);nCi=nSi;
       const shape=SHAPES[si];
       if(topY(board)>=MAX_H) return false;
       const {x,z}=spawnPos(shape);
@@ -349,7 +356,7 @@ export default function ThePlay3DPage() {
     }
     function startGame(){
       board=mkBoard();piece=null;lScore=0;lLevel=1;lChk=0;lPhase='playing';
-      nSi=Math.floor(Math.random()*7);nCi=nSi;dropAcc=0;
+      nSi=Math.floor(Math.random()*SHAPE_COUNT);nCi=nSi;dropAcc=0;
       boardGroup.clear();pieceGroup.clear();ghostGroup.clear();setShowSub(false);
       // Start music
       musicStop.current?.();
