@@ -294,10 +294,9 @@ export default function ThePlay3DPage() {
       const si=nSi,ci=nCi;
       nSi=Math.floor(Math.random()*7);nCi=nSi;
       const shape=SHAPES[si];
-      const ty=topY(board);
-      if(ty>=MAX_H) return false;
+      if(topY(board)>=MAX_H) return false;
       const {x,z}=spawnPos(shape);
-      const p:Piece={shape,ci,x,y:ty,z};
+      const p:Piece={shape,ci,x,y:MAX_H-1,z};
       if(!fits(board,p)) return false;
       piece=p; return true;
     }
