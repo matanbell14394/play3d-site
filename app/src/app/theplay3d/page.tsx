@@ -145,6 +145,8 @@ export default function ThePlay3DPage() {
   const [nextSi,setNextSi]   = useState(0);
   const [lb,setLb]           = useState<LBEntry[]>([]);
   const [showSub,setShowSub] = useState(false);
+  const [hasSaved,setHasSaved] = useState(false);
+  const [paused,setPaused]   = useState(false);
   const [pname,setPname]     = useState('');
   const [submitting,setSub]  = useState(false);
   const [isTouch,setIsTouch] = useState(false);
@@ -154,6 +156,7 @@ export default function ThePlay3DPage() {
   const chkRef     = useRef(0);
   const startRef   = useRef<()=>void>(()=>{});
   const flashRef   = useRef(false);
+  const pausedRef  = useRef(false);
   const moveRef    = useRef<(dx:number,dz:number)=>void>(()=>{});
   const rotateRef  = useRef<()=>void>(()=>{});
   const dropRef    = useRef<()=>void>(()=>{});
@@ -408,7 +411,8 @@ export default function ThePlay3DPage() {
     function startGame(){
       board=mkBoard();piece=null;lScore=0;lLevel=1;lChk=0;lPhase='playing';
       nSi=Math.floor(Math.random()*SHAPE_COUNT);nCi=nSi;dropAcc=0;
-      boardGroup.clear();pieceGroup.clear();ghostGroup.clear();setShowSub(false);
+      boardGroup.clear();pieceGroup.clear();ghostGroup.clear();
+      setShowSub(false);setHasSaved(false);setPaused(false);pausedRef.current=false;
       // Start music
       musicStop.current?.();
       try{
@@ -456,6 +460,8 @@ export default function ThePlay3DPage() {
       if(phaseRef.current!=='playing'){
         if(e.key===' '||e.key==='Enter') startGame(); return;
       }
+      if(e.key==='p'||e.key==='P'){ pausedRef.current=!pausedRef.current; setPaused(pausedRef.current); return; }
+      if(pausedRef.current) return;
       if(e.key==='r'||e.key==='R'||e.key==='Control'||e.key==='Alt') rotatePiece();
       else if(e.key===' ') hardDrop();
       else if(['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','a','d','w','s'].includes(e.key)){
@@ -496,7 +502,7 @@ export default function ThePlay3DPage() {
     const animate=(now:number)=>{
       rafId=requestAnimationFrame(animate);
       const dt=Math.min(now-last,100);last=now;
-      if(lPhase==='playing'&&!flashRef.current){
+      if(lPhase==='playing'&&!flashRef.current&&!pausedRef.current){
         dropAcc+=dt;
         if(dropAcc>=dropInterval(lLevel)){dropAcc=0;tryDrop();}
       }
@@ -527,7 +533,7 @@ export default function ThePlay3DPage() {
     try{
       const {token}=await fetch(`/api/play3d/token?score=${scoreRef.current}&checkpoint=${chkRef.current}`).then(r=>r.json());
       await fetch('/api/play3d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:pname.trim(),token})});
-      setShowSub(false);fetchLb();
+      setShowSub(false);setHasSaved(true);fetchLb();
     }finally{setSub(false);}
   };
 
@@ -549,10 +555,10 @@ export default function ThePlay3DPage() {
 
   return (
     <div style={{position:'relative',width:'100vw',height:'100vh',overflow:'hidden',fontFamily:'system-ui,sans-serif',background:'#0d0720'}}>
-      <div ref={mountRef} style={{position:'absolute',inset:0}} />
+      <div ref={mountRef} style={{position:'absolute',inset:0,zIndex:0}} />
 
       {/* Top bar */}
-      <div style={{position:'absolute',top:0,left:0,right:0,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 16px',background:panelBg,backdropFilter:'blur(12px)',borderBottom:panelBorder}}>
+      <div style={{position:'absolute',top:0,left:0,right:0,zIndex:10,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 16px',background:panelBg,backdropFilter:'blur(12px)',borderBottom:panelBorder}}>
         <span style={{fontWeight:900,fontSize:16,color:'#bb88ff',letterSpacing:2}}>▶ PLAY3D</span>
         <div style={{display:'flex',gap:20}}>
           {[['ניקוד',score],['שלב',level],['שורות',chk]].map(([l,v])=>(
@@ -562,13 +568,25 @@ export default function ThePlay3DPage() {
             </div>
           ))}
         </div>
-        {!isTouch && <div style={{fontSize:10,color:'#7744aa',textAlign:'right',lineHeight:1.8}}>
-          🖱 גרור = מצלמה &nbsp;←→↑↓ = זוז<br/>R = סובב &nbsp;Space = נפל
-        </div>}
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {phase==='playing' && <>
+            <button onClick={()=>{ pausedRef.current=!pausedRef.current; setPaused(p=>!p); }}
+              style={{padding:'5px 14px',borderRadius:8,border:'1px solid rgba(140,80,255,0.4)',background:'rgba(60,20,120,0.7)',color:'#cc99ff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              {paused?'▶':'⏸'}
+            </button>
+            <button onClick={()=>startRef.current()}
+              style={{padding:'5px 14px',borderRadius:8,border:'1px solid rgba(140,80,255,0.4)',background:'rgba(60,20,120,0.7)',color:'#cc99ff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              ↺
+            </button>
+          </>}
+          {!isTouch && <div style={{fontSize:10,color:'#7744aa',textAlign:'right',lineHeight:1.8}}>
+            🖱 גרור = מצלמה &nbsp;←→↑↓ = זוז<br/>R/Ctrl = סובב &nbsp;Space = נפל &nbsp;P = השהה
+          </div>}
+        </div>
       </div>
 
       {/* Side panel */}
-      <div style={{position:'absolute',top:56,right:12,display:'flex',flexDirection:'column',gap:10,width:158}}>
+      <div style={{position:'absolute',top:56,right:12,zIndex:10,display:'flex',flexDirection:'column',gap:10,width:158}}>
         <div style={{background:panelBg,backdropFilter:'blur(12px)',borderRadius:12,padding:12,border:panelBorder}}>
           <div style={{fontSize:9,color:'#8855cc',fontWeight:700,marginBottom:8,letterSpacing:1}}>הבלוק הבא</div>
           <div style={{display:'grid',gridTemplateColumns:`repeat(${pvW},22px)`,gridTemplateRows:`repeat(${pvH},22px)`,gap:2,margin:'0 auto',width:'fit-content'}}>
@@ -595,7 +613,7 @@ export default function ThePlay3DPage() {
 
       {/* Mobile D-pad */}
       {isTouch && phase==='playing' && (
-        <div style={{position:'absolute',bottom:20,left:0,right:0,display:'flex',justifyContent:'space-between',alignItems:'flex-end',padding:'0 20px',pointerEvents:'none'}}>
+        <div style={{position:'absolute',bottom:20,left:0,right:0,zIndex:10,display:'flex',justifyContent:'space-between',alignItems:'flex-end',padding:'0 20px',pointerEvents:'none'}}>
           {/* Left: directional */}
           <div style={{display:'grid',gridTemplateColumns:'60px 60px 60px',gridTemplateRows:'60px 60px 60px',gap:6,pointerEvents:'auto'}}>
             {[
@@ -621,7 +639,7 @@ export default function ThePlay3DPage() {
 
       {/* Idle overlay */}
       {phase==='idle' && (
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
+        <div style={{position:'absolute',inset:0,zIndex:20,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
           <div style={{background:'rgba(20,10,50,0.95)',borderRadius:24,padding:'36px 48px',textAlign:'center',border:'1px solid rgba(140,70,255,0.4)',boxShadow:'0 0 60px rgba(100,40,200,0.3)'}}>
             <div style={{fontSize:44,marginBottom:8}}>🖨️</div>
             <h1 style={{fontSize:28,fontWeight:900,color:'#cc88ff',margin:'0 0 6px',letterSpacing:2}}>PLAY3D</h1>
@@ -638,21 +656,26 @@ export default function ThePlay3DPage() {
 
       {/* Dead / submit */}
       {phase==='dead' && !showSub && (
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
+        <div style={{position:'absolute',inset:0,zIndex:20,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
           <div style={{background:'rgba(20,10,50,0.95)',borderRadius:24,padding:'32px 44px',textAlign:'center',border:'1px solid rgba(140,70,255,0.4)'}}>
             <div style={{fontSize:38,marginBottom:8}}>💎</div>
             <h2 style={{fontSize:22,fontWeight:900,color:'#cc88ff',margin:'0 0 10px'}}>המשחק נגמר!</h2>
             <div style={{fontSize:30,fontWeight:900,color:'#ffaaff',marginBottom:4}}>{score}</div>
             <div style={{fontSize:12,color:'#9966cc',marginBottom:22}}>שורות שהושלמו: {chk}</div>
             <div style={{display:'flex',gap:10,justifyContent:'center'}}>
-              <button onClick={()=>setShowSub(true)} style={{padding:'10px 24px',background:'linear-gradient(135deg,#6622cc,#cc2266)',border:'none',borderRadius:10,color:'white',fontSize:13,fontWeight:700,cursor:'pointer'}}>שמור תוצאה</button>
+              {hasSaved
+                ? <div style={{padding:'10px 24px',color:'#88ffaa',fontSize:13,fontWeight:700}}>נשמר ✓</div>
+                : score > 0
+                  ? <button onClick={()=>setShowSub(true)} style={{padding:'10px 24px',background:'linear-gradient(135deg,#6622cc,#cc2266)',border:'none',borderRadius:10,color:'white',fontSize:13,fontWeight:700,cursor:'pointer'}}>שמור תוצאה</button>
+                  : null
+              }
               <button onClick={()=>startRef.current()} style={{padding:'10px 24px',background:'rgba(60,30,100,0.8)',border:'1px solid rgba(120,60,200,0.5)',borderRadius:10,color:'#cc88ff',fontSize:13,fontWeight:700,cursor:'pointer'}}>שחק שוב</button>
             </div>
           </div>
         </div>
       )}
       {showSub && (
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
+        <div style={{position:'absolute',inset:0,zIndex:20,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(10,4,30,0.7)',backdropFilter:'blur(6px)'}}>
           <div style={{background:'rgba(20,10,50,0.95)',borderRadius:24,padding:'32px 44px',textAlign:'center',border:'1px solid rgba(140,70,255,0.4)',minWidth:280}}>
             <div style={{fontSize:34,marginBottom:8}}>🏆</div>
             <h3 style={{fontSize:18,fontWeight:900,color:'#cc88ff',margin:'0 0 6px'}}>שמור את השיא</h3>
