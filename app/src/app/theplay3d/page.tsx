@@ -240,14 +240,65 @@ export default function ThePlay3DPage() {
       w.position.set(wx,MAX_H/2,wz); w.rotation.y=rotY; scene.add(w);
     }
 
+    // ── FDM layer-lines bump texture ──────────────────────────────────────────
+    function makeLayerBump(): THREE.CanvasTexture {
+      const W=128, H=256;
+      const canvas=document.createElement('canvas');
+      canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d')!;
+      const LAYERS=14; // visible layer count across cell height
+      const lh=H/LAYERS;
+      for(let y=0;y<H;y++){
+        const t=(y%lh)/lh;
+        // Ridge profile: smooth sine — bright = raised, dark = valley
+        const ridge=Math.sin(t*Math.PI);
+        // Add fine surface texture (extrusion grain)
+        const grain=(Math.random()-0.5)*0.08;
+        const v=Math.max(0,Math.min(1, ridge*0.75+0.25+grain));
+        const c=Math.round(v*255);
+        ctx.fillStyle=`rgb(${c},${c},${c})`;
+        ctx.fillRect(0,y,W,1);
+      }
+      const tex=new THREE.CanvasTexture(canvas);
+      tex.wrapS=THREE.RepeatWrapping;
+      tex.wrapT=THREE.RepeatWrapping;
+      tex.repeat.set(1,1);
+      return tex;
+    }
+    function makeLayerRoughness(): THREE.CanvasTexture {
+      const W=128, H=256;
+      const canvas=document.createElement('canvas');
+      canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d')!;
+      const LAYERS=14;
+      const lh=H/LAYERS;
+      for(let y=0;y<H;y++){
+        const t=(y%lh)/lh;
+        // Ridge tops = smoother (shiny), valleys = rougher (matte)
+        const ridge=Math.sin(t*Math.PI);
+        const v=Math.max(0,Math.min(1, 1-ridge*0.6));
+        const c=Math.round(v*255);
+        ctx.fillStyle=`rgb(${c},${c},${c})`;
+        ctx.fillRect(0,y,W,1);
+      }
+      const tex=new THREE.CanvasTexture(canvas);
+      tex.wrapS=THREE.RepeatWrapping;
+      tex.wrapT=THREE.RepeatWrapping;
+      return tex;
+    }
+    const layerBump=makeLayerBump();
+    const layerRough=makeLayerRoughness();
+
     // Board / piece meshes
     const boardGroup=new THREE.Group(); scene.add(boardGroup);
     const pieceGroup=new THREE.Group(); scene.add(pieceGroup);
     const ghostGroup=new THREE.Group(); scene.add(ghostGroup);
     const cellGeo=new THREE.BoxGeometry(0.88,0.88,0.88);
     const cellMats=PC.map(c=>new THREE.MeshStandardMaterial({
-      color:c,roughness:0.15,metalness:0.7,
-      emissive:c,emissiveIntensity:0.25,
+      color:c, roughness:0.5, metalness:0.45,
+      emissive:c, emissiveIntensity:0.18,
+      bumpMap:layerBump, bumpScale:0.06,
+      roughnessMap:layerRough,
     }));
     function mkMesh(ci:number,ghost=false): THREE.Mesh {
       const m=ghost
