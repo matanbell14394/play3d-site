@@ -308,7 +308,7 @@ export default function ThePlay3DPage() {
     }
     function placePiece(){
       if(!piece) return;
-      lock(board,piece); piece=null;
+      lock(board,piece); piece=null; dropAcc=0;
       const cleared=clearLines(board);
       if(cleared>0){
         lChk+=cleared;
