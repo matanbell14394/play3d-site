@@ -28,7 +28,6 @@ export default function SiteNav({ active }: { active?: string }) {
             <Link key={l.id} href={l.href} className={`nl${active === l.id ? ' active' : ''}`}>{l.label}</Link>
           ))}
           <Link href="/login" className="nl special">אזור לקוח</Link>
-          <Link href="/admin/dashboard" className="nl cta">ניהול</Link>
           <ThemeToggle />
         </div>
 
@@ -51,7 +50,6 @@ export default function SiteNav({ active }: { active?: string }) {
             ))}
             <div className="mdl-divider" />
             <Link href="/login" className="mdl mdl-special" onClick={() => setOpen(false)}>אזור לקוח</Link>
-            <Link href="/admin/dashboard" className="mdl mdl-cta" onClick={() => setOpen(false)}>ניהול</Link>
           </div>
         </div>
       )}

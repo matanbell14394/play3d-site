@@ -23,6 +23,12 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [pwModal, setPwModal] = useState(false);
+  const [pwTarget, setPwTarget] = useState<User | null>(null);
+  const [pwForm, setPwForm] = useState({ password: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
+
   const load = async () => {
     setLoading(true);
     const res = await fetch('/api/users');
@@ -55,6 +61,25 @@ export default function UsersPage() {
     if (!confirm(`למחוק את ${email}?`)) return;
     await fetch(`/api/users/${id}`, { method: 'DELETE' });
     load();
+  };
+
+  const openPwModal = (u: User) => { setPwTarget(u); setPwForm({ password: '', confirm: '' }); setPwError(''); setPwModal(true); };
+  const closePwModal = () => { setPwModal(false); setPwTarget(null); };
+
+  const savePassword = async () => {
+    if (!pwForm.password) { setPwError('יש להזין סיסמה'); return; }
+    if (pwForm.password.length < 6) { setPwError('סיסמה חייבת להכיל לפחות 6 תווים'); return; }
+    if (pwForm.password !== pwForm.confirm) { setPwError('הסיסמאות אינן תואמות'); return; }
+    setPwSaving(true); setPwError('');
+    try {
+      const res = await fetch(`/api/users/${pwTarget!.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: pwTarget!.name, email: pwTarget!.email, role: pwTarget!.role, password: pwForm.password }),
+      });
+      if (!res.ok) { setPwError('שגיאה בשמירה'); return; }
+      closePwModal();
+    } finally { setPwSaving(false); }
   };
 
   const admins = users.filter(u => u.role === 'ADMIN').length;
@@ -97,6 +122,7 @@ export default function UsersPage() {
                 <td style={{ color: 'var(--text3)', fontSize: 12 }}>{new Date(u.createdAt).toLocaleDateString('he-IL')}</td>
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn btn-t btn-sm" onClick={() => openEdit(u)}>✏️</button>
+                  <button className="btn btn-t btn-sm" title="שנה סיסמה" onClick={() => openPwModal(u)}>🔑</button>
                   <button className="btn btn-d btn-sm" onClick={() => remove(u.id, u.email)}>🗑️</button>
                 </td>
               </tr>
@@ -104,6 +130,41 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {pwModal && pwTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 380 }}>
+            <div style={{ fontFamily: 'var(--font-orbitron)', fontSize: 16, fontWeight: 700, color: 'var(--teal)', marginBottom: 6 }}>
+              🔑 שינוי סיסמה
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20 }}>{pwTarget.email}</div>
+
+            {[
+              { label: 'סיסמה חדשה', key: 'password', placeholder: '••••••••' },
+              { label: 'אימות סיסמה', key: 'confirm', placeholder: '••••••••' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>{f.label}</label>
+                <input
+                  type="password" placeholder={f.placeholder}
+                  value={pwForm[f.key as keyof typeof pwForm]}
+                  onChange={e => setPwForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border2)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              </div>
+            ))}
+
+            {pwError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠️ {pwError}</div>}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={closePwModal} style={{ flex: 1, padding: '10px 0', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>ביטול</button>
+              <button onClick={savePassword} disabled={pwSaving} style={{ flex: 2, padding: '10px 0', background: 'linear-gradient(135deg,var(--teal),var(--teal2))', border: 'none', color: '#000', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, opacity: pwSaving ? .7 : 1 }}>
+                {pwSaving ? 'שומר...' : 'שמור סיסמה'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>

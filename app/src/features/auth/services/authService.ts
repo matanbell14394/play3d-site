@@ -2,6 +2,7 @@ import { userRepository } from "../repositories/userRepository";
 import { UserEntity } from "../types";
 import { compare } from "bcryptjs";
 import { BaseUser, UserRole } from "@/types";
+import { sendLoginAlert } from "@/lib/email/sendEmail";
 
 // Placeholder for a more complex permission check
 type Permission = string;
@@ -18,6 +19,7 @@ class AuthService {
 
     if (!user) {
       console.log(`Login attempt failed: User ${email} not found.`);
+      sendLoginAlert(email).catch(() => {});
       return null;
     }
 
@@ -25,6 +27,7 @@ class AuthService {
 
     if (!isPasswordValid) {
       console.log(`Login attempt failed: Invalid password for user ${email}.`);
+      sendLoginAlert(email).catch(() => {});
       return null;
     }
 

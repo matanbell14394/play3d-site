@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma/prisma';
 import { requireAdmin } from '@/lib/auth/requireAdmin';
+import { sendContactNotification } from '@/lib/email/sendEmail';
 
 // GET — admin only
 export async function GET() {
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Fields too long' }, { status: 400 });
     }
     const msg = await prisma.contactMessage.create({ data: { name, contact, message } });
+    sendContactNotification({ fromName: name, fromContact: contact, message, receivedAt: msg.createdAt }).catch(() => {});
     return NextResponse.json(msg, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
