@@ -9,9 +9,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
+  const role = (session.user as { role?: string })?.role;
+  if (role !== 'ADMIN' && role !== 'OPERATOR') redirect("/");
+
   const initials = session.user?.name?.charAt(0)?.toUpperCase() ?? 'A';
   const name = session.user?.name ?? 'Admin';
-  const role = (session.user as { role?: string })?.role ?? 'ADMIN';
+
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', paddingTop: 60 }}>
