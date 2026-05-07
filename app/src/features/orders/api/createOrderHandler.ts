@@ -4,6 +4,7 @@ import { orderService } from "../services/orderService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { ApiResponse, BaseUser } from "@/types";
+import { sendOrderNotification } from "@/lib/email/sendEmail";
 
 export async function handleCreateOrder(req: NextRequest): Promise<NextResponse<ApiResponse>> {
   try {
@@ -26,6 +27,14 @@ export async function handleCreateOrder(req: NextRequest): Promise<NextResponse<
     const user = session.user as BaseUser;
     
     const newOrder = await orderService.createOrder(user, validatedData.data);
+
+    sendOrderNotification({
+      clientName: validatedData.data.clientName,
+      clientEmail: user.email ?? '',
+      clientPhone: validatedData.data.clientPhone,
+      description: validatedData.data.notes ?? validatedData.data.stlUrl ?? 'ללא תיאור',
+      receivedAt: new Date(),
+    }).catch(() => {});
 
     return NextResponse.json({ success: true, data: newOrder }, { status: 201 });
 
