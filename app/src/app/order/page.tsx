@@ -44,21 +44,8 @@ export default function OrderPage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      // 1. Save as Order (appears in admin Orders tab + sends order email)
-      const orderRes = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientName: form.name,
-          clientPhone: form.phone,
-          quantity: form.quantity,
-          notes: `${form.printType ? `סוג הדפסה: ${form.printType}\n` : ''}${form.city ? `עיר: ${form.city}\n` : ''}${form.description}`,
-          stlUrl: form.modelUrl || undefined,
-        }),
-      });
-
-      // 2. Save as Contact Message (appears in admin Contacts tab + sends contact email)
-      await fetch('/api/contact', {
+      // Save as Contact Message only (appears in admin Contacts tab + sends contact email)
+      const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,13 +55,9 @@ export default function OrderPage() {
         }),
       });
 
-      if (!orderRes.ok && orderRes.status !== 201) {
-        const err = await orderRes.json().catch(() => ({}));
-        // If unauthorized (no session somehow), still consider it a partial success
-        // since contact was saved
-        if (orderRes.status !== 401) {
-          console.warn('Order API error:', err);
-        }
+      if (!res.ok) {
+        setSubmitError('שגיאה בשליחה. נסה שוב.');
+        return;
       }
 
       setSubmitted(true);
