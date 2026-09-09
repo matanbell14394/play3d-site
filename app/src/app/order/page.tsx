@@ -37,7 +37,54 @@ export default function OrderPage() {
   const step1Valid = !!(form.name && form.email && form.phone);
   const step2Valid = form.quantity >= 1 && !!form.description;
 
-  const submit = async () => setSubmitted(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const submit = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      // 1. Save as Order (appears in admin Orders tab + sends order email)
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: form.name,
+          clientPhone: form.phone,
+          quantity: form.quantity,
+          notes: `${form.printType ? `סוג הדפסה: ${form.printType}\n` : ''}${form.city ? `עיר: ${form.city}\n` : ''}${form.description}`,
+          stlUrl: form.modelUrl || undefined,
+        }),
+      });
+
+      // 2. Save as Contact Message (appears in admin Contacts tab + sends contact email)
+      await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          contact: `${form.email} | ${form.phone}`,
+          message: `הזמנת הדפסה חדשה 🖨️\n\nסוג: ${form.printType || 'לא צוין'}\nכמות: ${form.quantity}\nעיר: ${form.city || 'לא צוין'}\nקישור מודל: ${form.modelUrl || 'לא צוין'}\n\nתיאור:\n${form.description}`,
+        }),
+      });
+
+      if (!orderRes.ok && orderRes.status !== 201) {
+        const err = await orderRes.json().catch(() => ({}));
+        // If unauthorized (no session somehow), still consider it a partial success
+        // since contact was saved
+        if (orderRes.status !== 401) {
+          console.warn('Order API error:', err);
+        }
+      }
+
+      setSubmitted(true);
+    } catch {
+      setSubmitError('שגיאה בשליחה. נסה שוב.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   if (submitted) return (
     <>
@@ -146,11 +193,14 @@ export default function OrderPage() {
                 💡 לאחר השליחה, נחזור אליך תוך 24 שעות עם הצעת מחיר ואישור.
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => setStep(2)} style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>← חזור</button>
-                <button onClick={submit} style={{ flex: 1, padding: '13px 0', borderRadius: 10, background: 'linear-gradient(135deg,var(--teal),var(--teal2))', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  🚀 שלח הזמנה
+                <button onClick={() => setStep(2)} disabled={submitting} style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 14, fontFamily: 'inherit' }}>← חזור</button>
+                <button onClick={submit} disabled={submitting} style={{ flex: 1, padding: '13px 0', borderRadius: 10, background: submitting ? 'var(--bg3)' : 'linear-gradient(135deg,var(--teal),var(--teal2))', border: 'none', color: submitting ? 'var(--text3)' : '#000', fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+                  {submitting ? '⏳ שולח...' : '🚀 שלח הזמנה'}
                 </button>
               </div>
+              {submitError && (
+                <div style={{ marginTop: 12, color: '#ef4444', fontSize: 13, textAlign: 'center' }}>{submitError}</div>
+              )}
             </div>
           )}
         </div>

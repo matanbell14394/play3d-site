@@ -86,7 +86,7 @@ export default function GalleryClient({ items }: { items: Item[] }) {
         )}
 
         <div style={{ textAlign: 'center', marginTop: 40 }}>
-          <Link href="/order" className="btn-hero" style={{ display: 'inline-block', fontSize: 14 }}>הזמן הדפסה דומה</Link>
+          <Link href="/#contact" className="btn-hero" style={{ display: 'inline-block', fontSize: 14 }}>הזמן הדפסה דומה</Link>
         </div>
       </div>
 

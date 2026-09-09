@@ -84,7 +84,7 @@ export default function HowItWorksPage() {
         <div style={{ textAlign: 'center', padding: '64px 24px' }}>
           <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>מוכן להתחיל?</h2>
           <p style={{ color: 'var(--text2)', fontSize: 14, marginBottom: 28 }}>שלח קובץ ונחזור אליך עם הצעת מחיר תוך 24 שעות</p>
-          <Link href="/order" className="btn-hero" style={{ display: 'inline-block', fontSize: 15 }}>הזמן הדפסה עכשיו</Link>
+          <Link href="/#contact" className="btn-hero" style={{ display: 'inline-block', fontSize: 15 }}>הזמן הדפסה עכשיו</Link>
         </div>
       </main>
     </>
